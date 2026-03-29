@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from brief_service.engine import BriefScope, build_alerts, generate_now_brief
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -27,6 +27,7 @@ store = AssignmentStore(audit_file=AUDIT_FILE, audit_gcs_uri=os.getenv("TRIAGE_A
 event_source = build_event_source(EVENTS_FILE)
 app = FastAPI(title="Planetary Intelligence Triage API", version="0.1.0")
 
+# Serve /assets from the Vite build output
 ASSETS_DIR = WEB_DIR / "assets" if (WEB_DIR / "assets").exists() else WEB_DIR
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
@@ -138,3 +139,16 @@ def ops_counters(ctx: AuthContext = Depends(build_auth_context)) -> dict[str, An
         "eventRecords": event_source.count_records(),
         "auditAssignments": store.count_assignments(),
     }
+
+
+# ---------- SPA catch-all: serve any unknown path as index.html ----------
+# This must be LAST so API routes still match first.
+@app.get("/{full_path:path}")
+def spa_catch_all(full_path: str) -> FileResponse:
+    """Serve static files from dist or fallback to index.html for SPA routing."""
+    # Check if the requested path maps to an actual file in dist
+    file_path = WEB_DIR / full_path
+    if file_path.is_file():
+        return FileResponse(file_path)
+    # Otherwise serve index.html for client-side routing
+    return FileResponse(WEB_DIR / "index.html")
