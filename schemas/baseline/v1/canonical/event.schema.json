@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://planetary-intelligence/schemas/canonical/event.schema.json",
+  "title": "Event",
+  "type": "object",
+  "required": [
+    "event_id",
+    "revision",
+    "event_type",
+    "time_window",
+    "temporal_confidence",
+    "location",
+    "entities",
+    "evidence_refs",
+    "confidence",
+    "uncertainty",
+    "impact",
+    "causality_links",
+    "source_attribution",
+    "created_at"
+  ],
+  "properties": {
+    "event_id": { "type": "string" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "event_type": { "type": "string" },
+    "time_window": {
+      "type": "object",
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "string", "format": "date-time" },
+        "end": { "type": "string", "format": "date-time" }
+      }
+    },
+    "temporal_confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "location": {
+      "type": "object",
+      "required": ["geometry_type", "coordinates"],
+      "properties": {
+        "geometry_type": { "type": "string" },
+        "coordinates": { "type": "array" }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["entity_id", "role"],
+        "properties": {
+          "entity_id": { "type": "string" },
+          "role": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+        }
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "uncertainty": {
+      "type": "object",
+      "required": ["score", "factors"],
+      "properties": {
+        "score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "factors": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "impact": {
+      "type": "object",
+      "required": ["dimensions"],
+      "properties": {
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "score"],
+            "properties": {
+              "name": { "type": "string" },
+              "score": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+            }
+          }
+        }
+      }
+    },
+    "causality_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["relation", "target_event_id", "confidence"],
+        "properties": {
+          "relation": {
+            "type": "string",
+            "enum": ["triggered_by", "correlated_with", "precedes", "amplifies", "mitigates"]
+          },
+          "target_event_id": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+        }
+      }
+    },
+    "source_attribution": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "claim_ids"],
+        "properties": {
+          "source_id": { "type": "string" },
+          "claim_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

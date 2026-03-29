@@ -1,0 +1,647 @@
+import { useEffect, useRef, useState, useCallback } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+import { getAlerts, getBrief, getCounters, getMeta } from "./api";
+import type { Alert, AuthConfig } from "./types";
+import { SEED_ALERTS, SEED_BRIEF } from "./seedData";
+import { Globe3D } from "./Globe3D";
+import { CountryPanel } from "./CountryPanel";
+import { LiveFeedPanel } from "./LiveFeedPanel";
+import {
+  GlobeIcon,
+  SirenIcon,
+  SignalIcon,
+  ClipboardIcon,
+  SearchIcon,
+  FileTextIcon,
+  RefreshIcon,
+  MapIcon,
+  Globe3DIcon,
+  WarningIcon,
+  CrosshairIcon,
+} from "./Icons";
+
+const AUTH_CONFIG: AuthConfig = {
+  mode: "header",
+  tenantId: "tenant-demo",
+  userId: "user-demo",
+  roles: "analyst",
+  token: "",
+};
+
+/* ─── Helpers ─────────────────────────────────────────────────────────── */
+
+function markerColor(severity: string | undefined): string {
+  if (severity === "critical") return "#ff4444";
+  if (severity === "high") return "#ff8800";
+  if (severity === "medium") return "#ffaa00";
+  return "#44aa44";
+}
+
+function fmtConfidence(value: number | undefined): string {
+  return Number(value || 0).toFixed(2);
+}
+
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+function formatDateTime(date: Date): string {
+  return date.toLocaleString("en-US", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function severityClass(severity: string | undefined): string {
+  return `sev-${severity || "low"}`;
+}
+
+function formatBrief(briefData: Record<string, unknown>): string {
+  const brief = briefData as {
+    generatedAt?: string;
+    changed?: string[];
+    whyItMatters?: string[];
+    likelyNext?: string[];
+    recommendedActions?: { action: string; urgency: string }[];
+    confidence?: number;
+  };
+
+  const lines: string[] = [];
+  lines.push(`GENERATED: ${brief.generatedAt || new Date().toISOString()}`);
+  lines.push(`CONFIDENCE: ${Number(brief.confidence || 0).toFixed(2)}`);
+  lines.push("");
+
+  if (brief.changed?.length) {
+    lines.push("═══ WHAT CHANGED ═══");
+    brief.changed.forEach((c, i) => lines.push(`${i + 1}. ${c}`));
+    lines.push("");
+  }
+
+  if (brief.whyItMatters?.length) {
+    lines.push("═══ WHY IT MATTERS ═══");
+    brief.whyItMatters.forEach((w) => lines.push(`• ${w}`));
+    lines.push("");
+  }
+
+  if (brief.likelyNext?.length) {
+    lines.push("═══ LIKELY NEXT ═══");
+    brief.likelyNext.forEach((n) => lines.push(`▸ ${n}`));
+    lines.push("");
+  }
+
+  if (brief.recommendedActions?.length) {
+    lines.push("═══ RECOMMENDED ACTIONS ═══");
+    brief.recommendedActions.forEach((a) => {
+      lines.push(`[${(a.urgency || "medium").toUpperCase()}] ${a.action}`);
+    });
+  }
+
+  return lines.join("\n");
+}
+
+/* ─── Country GeoJSON styles (very subtle) ────────────────────────────── */
+
+const COUNTRY_STYLE: L.PathOptions = {
+  fillColor: "#44ff88",
+  fillOpacity: 0.01, // Nearly invisible but still receives mouse events
+  color: "rgba(68, 255, 136, 0.12)",
+  weight: 0.8,
+};
+
+const COUNTRY_HOVER_STYLE: L.PathOptions = {
+  fillColor: "#44ff88",
+  fillOpacity: 0.08,
+  color: "rgba(68, 255, 136, 0.5)",
+  weight: 1.5,
+};
+
+/* ─── App ─────────────────────────────────────────────────────────────── */
+
+export function App() {
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [selected, setSelected] = useState<Alert | null>(null);
+  const [brief, setBrief] = useState<string>("Connecting to intelligence pipeline...");
+  const [eventsCount, setEventsCount] = useState<number>(0);
+  const [auditCount, setAuditCount] = useState<number>(0);
+  const [liveState, setLiveState] = useState<string>("CONNECTING");
+  const [error, setError] = useState<string>("");
+  const [clock, setClock] = useState<string>("");
+  const [briefTime, setBriefTime] = useState<string>("");
+  const [mapMode, setMapMode] = useState<"2d" | "3d">("2d");
+  const [mapHeight, setMapHeight] = useState<number>(45);
+  const [selectedCountry, setSelectedCountry] = useState<{ code: string; name: string } | null>(null);
+  const [apiReachable, setApiReachable] = useState<boolean | null>(null);
+
+  const mapRef = useRef<L.Map | null>(null);
+  const layerRef = useRef<L.LayerGroup | null>(null);
+  const geoJsonRef = useRef<L.GeoJSON | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const mapSectionRef = useRef<HTMLElement | null>(null);
+
+  const isResizingRef = useRef(false);
+  const resizeStartYRef = useRef(0);
+  const resizeStartHeightRef = useRef(0);
+
+  const selectedAlert = selected || alerts[0] || null;
+
+  /* ─── Clock ──────────────────────────────────────────────────────────── */
+
+  useEffect(() => {
+    const updateClock = () => {
+      setClock(`${formatDateTime(new Date())} UTC`);
+    };
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  /* ─── Data refresh with seed fallback ────────────────────────────────── */
+
+  const refreshAll = useCallback(async () => {
+    setError("");
+    try {
+      const [, nextAlerts, nextBrief, counters] = await Promise.all([
+        getMeta(),
+        getAlerts(AUTH_CONFIG),
+        getBrief(AUTH_CONFIG),
+        getCounters(AUTH_CONFIG),
+      ]);
+
+      if (nextAlerts.length > 0) {
+        setAlerts(nextAlerts);
+        setSelected((prev: Alert | null) => prev || nextAlerts[0] || null);
+        setApiReachable(true);
+        setLiveState("LIVE");
+      } else {
+        throw new Error("No alerts from API");
+      }
+
+      setBrief(formatBrief(nextBrief as unknown as Record<string, unknown>));
+      setBriefTime(`Updated ${formatTime(new Date())}`);
+      setEventsCount(Number(counters.eventRecords || 0));
+      setAuditCount(Number(counters.auditAssignments || 0));
+    } catch {
+      // Fallback to seed data
+      if (alerts.length === 0) {
+        setAlerts(SEED_ALERTS);
+        setSelected(SEED_ALERTS[0]);
+        setEventsCount(SEED_ALERTS.length);
+        setAuditCount(0);
+      }
+      if (brief === "Connecting to intelligence pipeline..." || brief.startsWith("{")) {
+        setBrief(formatBrief(SEED_BRIEF as unknown as Record<string, unknown>));
+        setBriefTime(`Seed data ${formatTime(new Date())}`);
+      }
+      setApiReachable(false);
+      setLiveState("LIVE SEED");
+    }
+  }, [alerts.length, brief]);
+
+  useEffect(() => {
+    void refreshAll();
+    timerRef.current = window.setInterval(() => {
+      if (document.hidden) {
+        setLiveState((prev) => prev.includes("PAUSED") ? prev : prev + " PAUSED");
+        return;
+      }
+      void refreshAll();
+    }, 15000);
+
+    const onVisible = () => {
+      if (!document.hidden) void refreshAll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      if (timerRef.current !== null) window.clearInterval(timerRef.current);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refreshAll]);
+
+  /* ─── 2D Map (Leaflet) ────────────────────────────────────────────────── */
+
+  useEffect(() => {
+    if (mapMode !== "2d") return;
+
+    const initTimer = setTimeout(() => {
+      const mapEl = document.getElementById("map-canvas");
+      if (!mapEl) return;
+
+      if (!mapRef.current) {
+        const map = L.map("map-canvas", {
+          center: [20, 20],
+          zoom: 3,
+          minZoom: 3,
+          maxZoom: 8,
+          worldCopyJump: true,
+          zoomControl: true,
+        });
+
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+          maxZoom: 18,
+          attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+          subdomains: "abcd",
+        }).addTo(map);
+
+        layerRef.current = L.layerGroup().addTo(map);
+
+        fetch("/countries-110m.geojson")
+          .then((r) => r.json())
+          .then((geoData) => {
+            const geoLayer = L.geoJSON(geoData, {
+              style: () => COUNTRY_STYLE,
+              interactive: true,
+              bubblingMouseEvents: false,
+              onEachFeature: (feature, layer) => {
+                const name = feature.properties?.ADMIN || feature.properties?.NAME || "Unknown";
+                const iso = feature.properties?.ISO_A2 || "";
+
+                layer.on("mouseover", () => {
+                  (layer as L.Path).setStyle(COUNTRY_HOVER_STYLE);
+                });
+
+                layer.on("mouseout", () => {
+                  (layer as L.Path).setStyle(COUNTRY_STYLE);
+                });
+
+                layer.on("click", (e) => {
+                  if (e.originalEvent) {
+                    e.originalEvent.stopPropagation();
+                    e.originalEvent.preventDefault();
+                  }
+                  console.log("[PIP] Country clicked:", name, iso);
+                  setSelectedCountry({ code: iso, name });
+                });
+              },
+            }).addTo(map);
+
+            geoJsonRef.current = geoLayer;
+          })
+          .catch((err) => console.warn("Failed to load countries GeoJSON:", err));
+
+        mapRef.current = map;
+      }
+    }, 50);
+
+    return () => clearTimeout(initTimer);
+  }, [mapMode]);
+
+  useEffect(() => {
+    if (mapMode !== "2d" || !mapRef.current || !layerRef.current) return;
+
+    const map = mapRef.current;
+    const layer = layerRef.current;
+
+    layer.clearLayers();
+    const latLngs: [number, number][] = [];
+
+    for (const alert of alerts) {
+      const lat = Number(alert.location?.geo?.lat);
+      const lon = Number(alert.location?.geo?.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+      latLngs.push([lat, lon]);
+
+      const color = markerColor(alert.severity);
+      const marker = L.circleMarker([lat, lon], {
+        radius: alert.severity === "critical" ? 10 : alert.severity === "high" ? 8 : 6,
+        color,
+        weight: 2,
+        fillOpacity: 0.6,
+        fillColor: color,
+      });
+
+      // Pulse effect ring for critical alerts
+      if (alert.severity === "critical") {
+        L.circleMarker([lat, lon], {
+          radius: 16,
+          color,
+          weight: 1,
+          fillOpacity: 0.15,
+          fillColor: color,
+          interactive: false,
+          className: "marker-pulse",
+        }).addTo(layer);
+      }
+
+      marker.bindPopup(`
+        <div style="min-width:220px;font-family:monospace;">
+          <div style="font-weight:700;margin-bottom:6px;color:${color};font-size:12px;">
+            ${(alert.severity || "low").toUpperCase()} ALERT
+          </div>
+          <div style="margin-bottom:8px;font-size:11px;line-height:1.5;">${alert.snapshot || "No summary"}</div>
+          <div style="font-size:10px;color:#888;">
+            Confidence: ${fmtConfidence(alert.confidence)}
+          </div>
+        </div>
+      `);
+
+      marker.on("click", () => setSelected(alert));
+      marker.addTo(layer);
+    }
+
+    if (latLngs.length > 0) {
+      map.fitBounds(L.latLngBounds(latLngs).pad(0.25), { maxZoom: 5 });
+    }
+  }, [alerts, mapMode]);
+
+  useEffect(() => {
+    if (mapMode === "2d" && mapRef.current) {
+      setTimeout(() => mapRef.current?.invalidateSize(), 100);
+    }
+  }, [mapHeight, mapMode]);
+
+  useEffect(() => {
+    if (mapMode === "3d" && mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+      layerRef.current = null;
+      geoJsonRef.current = null;
+    }
+  }, [mapMode]);
+
+  /* ─── Resize Handle ──────────────────────────────────────────────────── */
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      isResizingRef.current = true;
+      resizeStartYRef.current = e.clientY;
+      resizeStartHeightRef.current = mapHeight;
+      document.body.style.cursor = "ns-resize";
+      document.body.style.userSelect = "none";
+      e.preventDefault();
+    },
+    [mapHeight]
+  );
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const deltaY = e.clientY - resizeStartYRef.current;
+      const deltaPercent = (deltaY / window.innerHeight) * 100;
+      const newHeight = Math.max(15, Math.min(80, resizeStartHeightRef.current + deltaPercent));
+      setMapHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      if (isResizingRef.current) {
+        isResizingRef.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  /* ─── Map mode toggle ────────────────────────────────────────────────── */
+
+  const handleModeSwitch = useCallback(
+    (mode: "2d" | "3d") => {
+      if (mode === mapMode) return;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        layerRef.current = null;
+        geoJsonRef.current = null;
+      }
+      setMapMode(mode);
+    },
+    [mapMode]
+  );
+
+  /* ─── Status ─────────────────────────────────────────────────────────── */
+
+  const statusDotClass =
+    liveState.includes("ERR") ? "status-dot error"
+    : liveState.includes("PAUSED") ? "status-dot paused"
+    : liveState === "CONNECTING" ? "status-dot paused"
+    : "status-dot";
+
+  /* ─── Render ─────────────────────────────────────────────────────────── */
+
+  return (
+    <div id="app">
+      {/* Header */}
+      <header className="header">
+        <div className="header-left">
+          <div className="brand">
+            <span className="brand-icon"><GlobeIcon size={22} /></span>
+            <div className="brand-text">
+              <span className="brand-name">PIP</span>
+              <span className="brand-sub">Planetary Intelligence</span>
+            </div>
+          </div>
+          <div className="status-indicator">
+            <span className={statusDotClass} />
+            <span>{liveState}</span>
+            {apiReachable === false && <span className="status-source">SEED</span>}
+          </div>
+        </div>
+        <div className="header-center">
+          <span className="header-title">Global Situation Console</span>
+          <span className="header-clock">{clock}</span>
+        </div>
+        <div className="header-right">
+          <div className="stat-chips">
+            <span className="chip"><SirenIcon size={12} /> ALERTS {alerts.length}</span>
+            <span className="chip"><SignalIcon size={12} /> EVENTS {eventsCount}</span>
+            <span className="chip"><ClipboardIcon size={12} /> AUDIT {auditCount}</span>
+          </div>
+          <button className="refresh-btn" onClick={() => void refreshAll()}>
+            <RefreshIcon size={14} />
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="main-content">
+        {/* Map Section */}
+        <section
+          className="map-section"
+          ref={mapSectionRef}
+          style={{ height: `${mapHeight}vh` }}
+        >
+          <div className="map-header">
+            <div className="map-header-left">
+              <span className="map-title">
+                {mapMode === "2d" ? <><MapIcon size={15} /> Global Posture Map</> : <><Globe3DIcon size={15} /> 3D Intelligence Globe</>}
+              </span>
+              <span className="map-subtitle">
+                {mapMode === "2d"
+                  ? "Live alert markers · Country hover intelligence · Real-time updates"
+                  : "Interactive globe · Country click intel · Auto-rotate"}
+              </span>
+            </div>
+            <div className="map-header-right">
+              <div className="map-dimension-toggle">
+                <button
+                  className={`map-dim-btn ${mapMode === "2d" ? "active" : ""}`}
+                  onClick={() => handleModeSwitch("2d")}
+                >
+                  2D
+                </button>
+                <button
+                  className={`map-dim-btn ${mapMode === "3d" ? "active" : ""}`}
+                  onClick={() => handleModeSwitch("3d")}
+                >
+                  3D
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="map-container">
+            {mapMode === "2d" ? (
+              <div id="map-canvas" key="leaflet-map" />
+            ) : (
+              <Globe3D
+                key="globe-3d"
+                alerts={alerts}
+                onAlertClick={(a) => setSelected(a)}
+                onCountryClick={(c) => setSelectedCountry(c)}
+              />
+            )}
+          </div>
+        </section>
+
+        {/* Resize Handle */}
+        <div
+          className="resize-handle"
+          onMouseDown={handleResizeStart}
+          title="Drag to resize map"
+        >
+          <div className="resize-handle-grip">
+            <span /><span /><span />
+          </div>
+        </div>
+
+        {/* Panels Grid */}
+        <div className="panels-grid">
+          {/* Live Feed Panel */}
+          <LiveFeedPanel />
+
+          {/* Alerts Panel */}
+          <article className="panel alerts-panel">
+            <div className="panel-header">
+              <div className="panel-header-left">
+                <span className="panel-icon"><SirenIcon size={15} /></span>
+                <h2 className="panel-title">Live Alert Inbox</h2>
+              </div>
+              <span className="panel-badge">{alerts.length}</span>
+            </div>
+            <p className="panel-hint">Click an alert for explainability and recommended actions</p>
+            <div className="panel-content">
+              {alerts.length === 0 ? (
+                <div className="empty-state">
+                  <span className="empty-icon"><CrosshairIcon size={32} color="#444" /></span>
+                  <p>Waiting for alerts from intelligence pipeline...</p>
+                </div>
+              ) : (
+                <ul className="alert-list">
+                  {alerts.map((alert) => (
+                    <li
+                      key={alert.alert_id}
+                      className={`alert-item ${severityClass(alert.severity)} ${selected?.alert_id === alert.alert_id ? "selected" : ""}`}
+                      onClick={() => setSelected(alert)}
+                    >
+                      <strong>{alert.snapshot || "No snapshot available"}</strong>
+                      <div className="meta">
+                        <span className="meta-badge">{(alert.severity || "low").toUpperCase()}</span>
+                        <span>confidence: {fmtConfidence(alert.confidence)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </article>
+
+          {/* Details Panel */}
+          <article className="panel details-panel">
+            <div className="panel-header">
+              <div className="panel-header-left">
+                <span className="panel-icon"><SearchIcon size={15} /></span>
+                <h2 className="panel-title">Alert Intelligence</h2>
+              </div>
+            </div>
+            <p className="panel-hint">Evidence, contradictions, and forecast narrative</p>
+            <div className="panel-content">
+              {selectedAlert ? (
+                <div className="details-content">
+                  <p><strong>Snapshot</strong>{selectedAlert.snapshot || "No snapshot"}</p>
+                  <p><strong>Drivers</strong>{(selectedAlert.drivers || []).join("\n• ") || "None identified"}</p>
+                  <p><strong>Contradictions</strong>{(selectedAlert.contradictions || []).join("\n• ") || "None found"}</p>
+                  <p><strong>Forecast</strong>{selectedAlert.forecast || "No forecast available"}</p>
+                  <p><strong>Recommended Actions</strong>
+                    <span style={{ display: "block", marginTop: 4, whiteSpace: "pre-wrap", fontSize: 10 }}>
+                      {(selectedAlert.recommended_actions || []).map(a => `▸ ${a}`).join("\n") || "▸ No specific actions recommended"}
+                    </span>
+                  </p>
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <span className="empty-icon"><SearchIcon size={32} color="#444" /></span>
+                  <p>Select an alert to inspect explainability fields</p>
+                </div>
+              )}
+            </div>
+          </article>
+
+          {/* Brief Panel */}
+          <article className="panel brief-panel span-2">
+            <div className="panel-header">
+              <div className="panel-header-left">
+                <span className="panel-icon"><FileTextIcon size={15} /></span>
+                <h2 className="panel-title">30-Second Intelligence Brief</h2>
+              </div>
+              <span className="panel-time">{briefTime}</span>
+            </div>
+            <p className="panel-hint">AI-generated current-state summary across all active threat domains</p>
+            <div className="panel-content">
+              <pre className="brief-output">{brief}</pre>
+            </div>
+          </article>
+
+          {/* Error Panel */}
+          {error && (
+            <article className="panel error-panel">
+              <div className="panel-header">
+                <div className="panel-header-left">
+                  <span className="panel-icon"><WarningIcon size={15} /></span>
+                  <h2 className="panel-title">System Notice</h2>
+                </div>
+              </div>
+              <div className="panel-content">
+                <pre className="error-output">{error}</pre>
+              </div>
+            </article>
+          )}
+        </div>
+      </main>
+
+      {/* Country Deep Dive Panel */}
+      <CountryPanel
+        country={selectedCountry}
+        alerts={alerts}
+        onClose={() => setSelectedCountry(null)}
+      />
+    </div>
+  );
+}

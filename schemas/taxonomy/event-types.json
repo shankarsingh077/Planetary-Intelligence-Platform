@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "domains": {
+    "geopolitics": ["policy_change", "diplomatic_action", "conflict_incident"],
+    "markets": ["volatility_spike", "liquidity_stress", "commodity_disruption"],
+    "climate": ["extreme_weather", "infrastructure_damage", "resource_shock"],
+    "cyber": ["outage", "intrusion", "data_exfiltration"],
+    "mobility": ["port_disruption", "airspace_restriction", "border_closure"],
+    "regulation": ["sanction", "trade_rule_change", "compliance_directive"]
+  }
+}

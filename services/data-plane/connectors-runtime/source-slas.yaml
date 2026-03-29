@@ -1,0 +1,72 @@
+version: 1
+sources:
+  - connector_id: news-api
+    topic: signals.news.v1
+    freshness_sla_seconds: 600
+    max_retries: 3
+    circuit_breaker_threshold: 4
+  - connector_id: regulation-api
+    topic: signals.regulation.v1
+    freshness_sla_seconds: 1800
+    max_retries: 3
+    circuit_breaker_threshold: 4
+  - connector_id: market-api
+    topic: signals.markets.v1
+    freshness_sla_seconds: 120
+    max_retries: 3
+    circuit_breaker_threshold: 5
+  - connector_id: mobility-api
+    topic: signals.mobility.v1
+    freshness_sla_seconds: 300
+    max_retries: 3
+    circuit_breaker_threshold: 4
+  - connector_id: gdelt-api
+    topic: signals.gdelt.v1
+    freshness_sla_seconds: 900
+    max_retries: 2
+    circuit_breaker_threshold: 4
+  - connector_id: weather-gov-api
+    topic: signals.weather.v1
+    freshness_sla_seconds: 600
+    max_retries: 2
+    circuit_breaker_threshold: 4
+  - connector_id: fred-api
+    topic: signals.fred.v1
+    freshness_sla_seconds: 1800
+    max_retries: 2
+    circuit_breaker_threshold: 4
+  - connector_id: coingecko-api
+    topic: signals.crypto.v1
+    freshness_sla_seconds: 180
+    max_retries: 2
+    circuit_breaker_threshold: 5
+  - connector_id: acled-api
+    topic: signals.acled.v1
+    freshness_sla_seconds: 1800
+    max_retries: 2
+    circuit_breaker_threshold: 4
+  - connector_id: eia-api
+    topic: signals.energy.v1
+    freshness_sla_seconds: 3600
+    max_retries: 2
+    circuit_breaker_threshold: 4
+  - connector_id: aviationstack-api
+    topic: signals.aviation.v1
+    freshness_sla_seconds: 300
+    max_retries: 2
+    circuit_breaker_threshold: 4
+  - connector_id: abuseipdb-api
+    topic: signals.cyber.v1
+    freshness_sla_seconds: 900
+    max_retries: 2
+    circuit_breaker_threshold: 4
+  - connector_id: finnhub-api
+    topic: signals.markets.v2
+    freshness_sla_seconds: 180
+    max_retries: 2
+    circuit_breaker_threshold: 5
+  - connector_id: corridorrisk-api
+    topic: signals.mobility.v2
+    freshness_sla_seconds: 300
+    max_retries: 2
+    circuit_breaker_threshold: 4

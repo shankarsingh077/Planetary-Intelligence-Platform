@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pip-storage-ingest
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: storage-runtime
+              image: ghcr.io/planetary-intelligence/storage-runtime:latest
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: STORE_PROFILE
+                  value: cloud
+                - name: OBJECT_STORE_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: pip-store-secrets
+                      key: object_bucket
+                - name: WAREHOUSE_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      name: pip-store-secrets
+                      key: warehouse_dsn
+              command:
+                [
+                  "python",
+                  "-m",
+                  "storage_runtime.ingest_events",
+                  "--input",
+                  "/data/events.enriched.jsonl",
+                  "--lake",
+                  "/data/lake",
+                  "--sqlite",
+                  "/data/serving.db"
+                ]
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pip-store-secrets
+type: Opaque
+stringData:
+  object_bucket: your-object-store-bucket
+  warehouse_dsn: postgresql://user:pass@warehouse-host:5432/pip

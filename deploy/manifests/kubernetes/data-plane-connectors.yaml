@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pip-connectors-runtime
+  labels:
+    app: pip-connectors-runtime
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pip-connectors-runtime
+  template:
+    metadata:
+      labels:
+        app: pip-connectors-runtime
+    spec:
+      containers:
+        - name: connectors-runtime
+          image: ghcr.io/planetary-intelligence/connectors-runtime:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: STREAM_PROFILE
+              value: redpanda
+            - name: REDPANDA_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: pip-stream-secrets
+                  key: bootstrap_servers
+          command: ["python", "-m", "connectors_runtime.runner"]
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pip-stream-secrets
+type: Opaque
+stringData:
+  bootstrap_servers: redpanda-cluster.default.svc.cluster.local:9092

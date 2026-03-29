@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IntelligenceAlertEnvelope",
+  "type": "object",
+  "required": ["message_id", "tenant_id", "alert", "trace"],
+  "properties": {
+    "message_id": { "type": "string" },
+    "tenant_id": { "type": "string" },
+    "alert": {
+      "type": "object",
+      "required": ["alert_id", "event_id", "severity", "confidence", "recommended_actions"],
+      "properties": {
+        "alert_id": { "type": "string" },
+        "event_id": { "type": "string" },
+        "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "recommended_actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "required": ["model_version", "schema_version", "produced_at"],
+      "properties": {
+        "model_version": { "type": "string" },
+        "schema_version": { "type": "string" },
+        "produced_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

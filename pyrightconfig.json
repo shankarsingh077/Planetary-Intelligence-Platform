@@ -1,0 +1,29 @@
+{
+  "include": [
+    "services/data-plane/connector-sdk/src",
+    "services/data-plane/connectors-runtime/src",
+    "services/data-plane/transform-jobs/src",
+    "services/data-plane/storage-runtime/src",
+    "services/intelligence-plane/brief-service/src",
+    "services/intelligence-plane/entity-resolver/src",
+    "services/intelligence-plane/fusion-service/src",
+    "services/intelligence-plane/confidence-service/src",
+    "services/experience-plane/triage-api/src",
+    "sre",
+    "tests"
+  ],
+  "extraPaths": [
+    "services/data-plane/connector-sdk/src",
+    "services/data-plane/connectors-runtime/src",
+    "services/data-plane/transform-jobs/src",
+    "services/data-plane/storage-runtime/src",
+    "services/intelligence-plane/brief-service/src",
+    "services/intelligence-plane/entity-resolver/src",
+    "services/intelligence-plane/fusion-service/src",
+    "services/intelligence-plane/confidence-service/src",
+    "services/experience-plane/triage-api/src",
+    "sre"
+  ],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic"
+}

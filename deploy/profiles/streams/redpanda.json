@@ -1,0 +1,9 @@
+{
+  "name": "redpanda",
+  "backend": "redpanda",
+  "bootstrap_env": "REDPANDA_BOOTSTRAP_SERVERS",
+  "default_bootstrap": "localhost:19092",
+  "acks": "all",
+  "compression": "zstd",
+  "healthcheck_mode": "tcp"
+}

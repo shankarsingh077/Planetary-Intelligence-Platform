@@ -1,0 +1,24 @@
+version: 1
+updated_at: 2026-03-29
+
+slos:
+  - name: ingestion_freshness
+    target: "99%"
+    window: "30d"
+    metric: "source_fresh_within_sla_ratio"
+  - name: alert_delivery_delay
+    target: "95% <= 30s"
+    window: "30d"
+    metric: "alert_delivery_p95_seconds"
+  - name: api_latency
+    target: "95% <= 500ms"
+    window: "30d"
+    metric: "api_latency_p95_ms"
+  - name: model_response_latency
+    target: "95% <= 2000ms"
+    window: "30d"
+    metric: "model_response_p95_ms"
+  - name: dashboard_availability
+    target: "99.9%"
+    window: "30d"
+    metric: "triage_ui_availability_ratio"

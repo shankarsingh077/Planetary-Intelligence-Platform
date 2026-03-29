@@ -1,0 +1,8 @@
+{
+  "name": "cloud",
+  "object_backend": "gcs",
+  "sql_backend": "warehouse",
+  "object_bucket_env": "OBJECT_STORE_BUCKET",
+  "object_prefix": "planetary-intel/events",
+  "warehouse_dsn_env": "WAREHOUSE_DSN"
+}

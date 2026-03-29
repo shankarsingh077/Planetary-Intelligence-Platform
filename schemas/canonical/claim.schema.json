@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://planetary-intelligence/schemas/canonical/claim.schema.json",
+  "title": "Claim",
+  "type": "object",
+  "required": ["claim_id", "source_id", "content", "language", "timestamp", "reliability_hint"],
+  "properties": {
+    "claim_id": { "type": "string" },
+    "source_id": { "type": "string" },
+    "content": { "type": "string" },
+    "language": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "reliability_hint": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+  }
+}

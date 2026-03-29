@@ -1,0 +1,29 @@
+# Sprint 1 staging tfvars template
+# Placeholder values only.
+
+project_id      = "planetaryintelligenceplatform"
+project_number  = "145930903164"
+project_name    = "PlanetaryIntelligencePlatform"
+region          = "asia-south1"
+
+# Stream
+stream_backend  = "kafka"
+stream_topic_raw      = "pip.raw.events"
+stream_topic_enriched = "pip.enriched.events"
+stream_topic_dlq      = "pip.dlq.events"
+
+# Storage
+raw_bucket_name       = "planetaryintelligenceplatform-staging-raw"
+events_bucket_name    = "planetaryintelligenceplatform-staging-events"
+enriched_bucket_name  = "planetaryintelligenceplatform-staging-enriched"
+dlq_bucket_name       = "planetaryintelligenceplatform-staging-dlq"
+
+# Serving store
+sql_engine            = "postgresql"
+sql_instance_name     = "pip-staging-sql"
+sql_database_name     = "pip_staging"
+
+# Kubernetes
+create_new_gke_cluster = true
+gke_cluster_name       = "pip-staging-gke"
+gke_namespace          = "pip-staging"

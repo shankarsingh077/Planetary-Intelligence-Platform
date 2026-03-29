@@ -1,0 +1,350 @@
+version: 1
+updated_at: 2026-03-29
+
+# Source classes: rss, api, websocket, bulk, scrape_fallback
+# Status: active, planned, trial
+
+sources:
+  - id: gdelt-events
+    domain: geopolitics
+    class: api
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 900
+  - id: acled-conflict
+    domain: geopolitics
+    class: api
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 1800
+  - id: reliefweb-updates
+    domain: humanitarian
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 1800
+  - id: who-disease-outbreak-news
+    domain: health
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+  - id: ocha-humanitarian-data
+    domain: humanitarian
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+
+  - id: sec-filings
+    domain: markets
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+  - id: fred-macro
+    domain: markets
+    class: api
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 3600
+  - id: ecb-policy
+    domain: markets
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+  - id: boe-announcements
+    domain: markets
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+  - id: imf-press
+    domain: markets
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 7200
+  - id: world-bank-data
+    domain: markets
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 7200
+
+  - id: iea-news
+    domain: energy
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+  - id: eia-energy-prices
+    domain: energy
+    class: api
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 1800
+  - id: opec-bulletins
+    domain: energy
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 7200
+  - id: entsoe-transparency
+    domain: energy
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 1800
+
+  - id: noaa-weather-alerts
+    domain: climate
+    class: api
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 900
+  - id: nasa-firms
+    domain: climate
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 900
+  - id: copernicus-climate
+    domain: climate
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+  - id: usgs-earthquake
+    domain: climate
+    class: api
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 300
+  - id: emdat-disaster-bulk
+    domain: climate
+    class: bulk
+    status: planned
+    priority: p2
+    freshness_sla_seconds: 86400
+
+  - id: cisa-advisories
+    domain: cyber
+    class: rss
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 1800
+  - id: nvd-cve
+    domain: cyber
+    class: api
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 1800
+  - id: cert-eu-advisories
+    domain: cyber
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+  - id: mitre-attack-updates
+    domain: cyber
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 7200
+  - id: shadowserver-alerts
+    domain: cyber
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 1800
+
+  - id: opensky-flights
+    domain: aviation
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 120
+  - id: faa-advisories
+    domain: aviation
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 1800
+  - id: eurocontrol-updates
+    domain: aviation
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 1800
+  - id: icao-notices
+    domain: aviation
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+
+  - id: marine-ais-stream
+    domain: maritime
+    class: websocket
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 60
+  - id: imo-news
+    domain: maritime
+    class: rss
+    status: planned
+    priority: p2
+    freshness_sla_seconds: 7200
+  - id: unctad-shipping
+    domain: maritime
+    class: api
+    status: planned
+    priority: p2
+    freshness_sla_seconds: 7200
+
+  - id: customs-bulletins-us
+    domain: regulation
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+  - id: eu-sanctions
+    domain: regulation
+    class: api
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 1800
+  - id: uk-sanctions
+    domain: regulation
+    class: api
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 1800
+  - id: un-sanctions
+    domain: regulation
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+
+  - id: port-traffic-indices
+    domain: mobility
+    class: api
+    status: planned
+    priority: p0
+    freshness_sla_seconds: 300
+  - id: rail-disruption-feeds
+    domain: mobility
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 900
+  - id: border-wait-times
+    domain: mobility
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 900
+  - id: logistics-bottleneck-index
+    domain: mobility
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 1800
+
+  - id: social-public-alert-streams
+    domain: social
+    class: api
+    status: trial
+    priority: p2
+    freshness_sla_seconds: 120
+  - id: state-media-rss-cluster
+    domain: narratives
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 600
+  - id: independent-media-rss-cluster
+    domain: narratives
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 600
+
+  - id: satellite-thermal-events
+    domain: satellite
+    class: api
+    status: trial
+    priority: p2
+    freshness_sla_seconds: 600
+  - id: satellite-nightlights
+    domain: satellite
+    class: bulk
+    status: planned
+    priority: p2
+    freshness_sla_seconds: 86400
+  - id: synthetic-aperture-alerts
+    domain: satellite
+    class: api
+    status: trial
+    priority: p2
+    freshness_sla_seconds: 3600
+
+  - id: procurement-notices-global
+    domain: supply-chain
+    class: api
+    status: planned
+    priority: p2
+    freshness_sla_seconds: 3600
+  - id: commodity-export-notices
+    domain: supply-chain
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 3600
+  - id: container-rate-feeds
+    domain: supply-chain
+    class: api
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 900
+
+  - id: gov-press-room-rss
+    domain: geopolitics
+    class: rss
+    status: planned
+    priority: p1
+    freshness_sla_seconds: 1800
+  - id: central-bank-speeches-rss
+    domain: markets
+    class: rss
+    status: planned
+    priority: p2
+    freshness_sla_seconds: 7200
+  - id: thinktank-policy-feeds
+    domain: geopolitics
+    class: rss
+    status: planned
+    priority: p2
+    freshness_sla_seconds: 7200
+
+  - id: fallback-html-scraper-geopolitics
+    domain: geopolitics
+    class: scrape_fallback
+    status: trial
+    priority: p2
+    freshness_sla_seconds: 3600
+  - id: fallback-html-scraper-regulation
+    domain: regulation
+    class: scrape_fallback
+    status: trial
+    priority: p2
+    freshness_sla_seconds: 3600
+  - id: fallback-html-scraper-markets
+    domain: markets
+    class: scrape_fallback
+    status: trial
+    priority: p2
+    freshness_sla_seconds: 1800

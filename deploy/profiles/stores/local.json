@@ -1,0 +1,7 @@
+{
+  "name": "local",
+  "object_backend": "local",
+  "sql_backend": "sqlite",
+  "object_root": "runtime-output/lake",
+  "sqlite_file": "runtime-output/serving.db"
+}

@@ -1,0 +1,45 @@
+name: contracts-ci
+
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install jsonschema fastapi uvicorn pydantic httpx
+
+      - name: Run schema compatibility check
+        run: |
+          python tools/schema_guard/compatibility_check.py
+
+      - name: Run connector runtime smoke test
+        env:
+          PYTHONPATH: services/data-plane/connector-sdk/src:services/data-plane/connectors-runtime/src:services/data-plane/transform-jobs/src:services/data-plane/storage-runtime/src:services/intelligence-plane/brief-service/src:services/intelligence-plane/entity-resolver/src:services/intelligence-plane/fusion-service/src:services/intelligence-plane/confidence-service/src:services/experience-plane/triage-api/src:sre
+        run: |
+          python -m connectors_runtime.runner
+          python -m transform_jobs.raw_to_event --input ./runtime-output/stream.jsonl --output ./runtime-output/events.jsonl
+          python -m transform_jobs.enrich_event --input ./runtime-output/events.jsonl --output ./runtime-output/events.enriched.jsonl
+          python -m storage_runtime.ingest_events --input ./runtime-output/events.enriched.jsonl --lake ./runtime-output/lake --sqlite ./runtime-output/serving.db
+          python sre/metrics/emit_metrics.py --out ./runtime-output/sre/metrics.json
+          python sre/chaos/run_chaos_check.py --mode dry-run --out ./runtime-output/sre/chaos-report.json
+
+      - name: Run contract and service tests
+        env:
+          PYTHONPATH: services/data-plane/connector-sdk/src:services/data-plane/connectors-runtime/src:services/data-plane/transform-jobs/src:services/data-plane/storage-runtime/src:services/intelligence-plane/brief-service/src:services/intelligence-plane/entity-resolver/src:services/intelligence-plane/fusion-service/src:services/intelligence-plane/confidence-service/src:services/experience-plane/triage-api/src:sre
+        run: |
+          python -m unittest tests/contracts/test_event_contract.py tests/contracts/test_source_catalog.py tests/contracts/test_brief_service.py tests/contracts/test_triage_policy.py tests/contracts/test_entity_fusion_confidence.py tests/contracts/test_rego_runtime.py tests/contracts/test_tenant_isolation_integration.py tests/contracts/test_storage_runtime.py tests/contracts/test_sre_scaffold.py tests/contracts/test_managed_backends.py tests/contracts/test_deployment_manifests.py tests/contracts/test_assignment_store_persistence.py tests/contracts/test_auth_mode_token.py tests/contracts/test_ops_counters_api.py tests/contracts/test_live_connector_wave.py

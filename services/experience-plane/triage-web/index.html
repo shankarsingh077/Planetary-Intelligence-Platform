@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planetary Intelligence Platform - Global Situation Console</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <style>
+      /* Prevent FOUC - apply dark theme immediately */
+      :root {
+        --bg: #0a0a0a;
+        --surface: #141414;
+        --border: #2a2a2a;
+        --text: #e8e8e8;
+      }
+      html { background: var(--bg); }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-left">
+          <div class="brand">
+            <span class="brand-icon">🌍</span>
+            <div class="brand-text">
+              <span class="brand-name">PIP</span>
+              <span class="brand-sub">Planetary Intelligence</span>
+            </div>
+          </div>
+          <div class="status-indicator">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="liveChip">LIVE</span>
+          </div>
+        </div>
+        <div class="header-center">
+          <span class="header-title">Global Situation Console</span>
+          <span class="header-clock" id="headerClock"></span>
+        </div>
+        <div class="header-right">
+          <div class="stat-chips">
+            <span class="chip" id="alertsCountChip"><span class="chip-icon">🚨</span> ALERTS 0</span>
+            <span class="chip" id="eventsCountChip"><span class="chip-icon">📡</span> EVENTS 0</span>
+            <span class="chip" id="auditCountChip"><span class="chip-icon">📋</span> AUDIT 0</span>
+          </div>
+          <button class="refresh-btn" id="refreshBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Map Section -->
+        <section class="map-section" id="mapSection">
+          <div class="map-header">
+            <div class="map-header-left">
+              <span class="map-title">🗺️ Global Posture Map</span>
+              <span class="map-subtitle">Live alert markers • Real-time updates</span>
+            </div>
+            <div class="map-header-right">
+              <div class="map-dimension-toggle">
+                <button class="map-dim-btn active" data-mode="2d">2D</button>
+                <button class="map-dim-btn" data-mode="3d">3D</button>
+              </div>
+              <button class="map-action-btn" id="mapFullscreenBtn" title="Fullscreen">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="map-container" id="mapCanvas"></div>
+          <div class="map-resize-handle"></div>
+        </section>
+
+        <!-- Panels Grid -->
+        <div class="panels-grid">
+          <!-- Alerts Panel -->
+          <article class="panel alerts-panel">
+            <div class="panel-header">
+              <div class="panel-header-left">
+                <span class="panel-icon">🚨</span>
+                <h2 class="panel-title">Live Alert Inbox</h2>
+              </div>
+              <span class="panel-badge" id="alertsBadge">0</span>
+            </div>
+            <p class="panel-hint">Click an alert for explainability and recommended actions</p>
+            <div class="panel-content">
+              <ul class="alert-list" id="alertList"></ul>
+            </div>
+          </article>
+
+          <!-- Details Panel -->
+          <article class="panel details-panel">
+            <div class="panel-header">
+              <div class="panel-header-left">
+                <span class="panel-icon">🔍</span>
+                <h2 class="panel-title">Alert Intelligence</h2>
+              </div>
+            </div>
+            <p class="panel-hint">Evidence, contradictions, and forecast narrative</p>
+            <div class="panel-content">
+              <div id="details" class="details-content">
+                <div class="empty-state">
+                  <span class="empty-icon">📊</span>
+                  <p>Select an alert to inspect explainability fields</p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Brief Panel -->
+          <article class="panel brief-panel span-2">
+            <div class="panel-header">
+              <div class="panel-header-left">
+                <span class="panel-icon">📄</span>
+                <h2 class="panel-title">30-Second Intelligence Brief</h2>
+              </div>
+              <span class="panel-time" id="briefTime"></span>
+            </div>
+            <p class="panel-hint">AI-generated current-state summary</p>
+            <div class="panel-content">
+              <pre id="briefOut" class="brief-output">Loading intelligence brief...</pre>
+            </div>
+          </article>
+        </div>
+      </main>
+
+      <!-- Country Deep Dive Panel (slides from right) -->
+      <aside id="countryPanel" class="country-panel" aria-hidden="true">
+        <div class="country-panel-shell">
+          <button class="country-panel-close" id="countryPanelClose">×</button>
+          <div class="country-panel-content" id="countryPanelContent"></div>
+        </div>
+      </aside>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

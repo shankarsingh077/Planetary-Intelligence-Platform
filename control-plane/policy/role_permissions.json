@@ -1,0 +1,6 @@
+{
+  "risk_officer": ["alerts:read", "briefs:read", "alerts:assign", "publish_strategic_recommendation"],
+  "analyst": ["alerts:read", "briefs:read", "alerts:assign", "alerts:write"],
+  "viewer": ["alerts:read", "briefs:read"],
+  "admin": ["alerts:read", "briefs:read", "alerts:assign", "alerts:write", "publish_strategic_recommendation"]
+}
