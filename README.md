@@ -29,7 +29,7 @@
   <img src="docs/assets/dashboard-preview.png" alt="PIP Dashboard — Global Situation Console" width="900"/>
 </p>
 
-<p align="center"><i>Global Situation Console — 2D posture map with live intelligence feeds, alert inbox, and AI-generated explainability</i></p>
+<p align="center"><i>Global Situation Console — 8-layer intelligence overlay with conflict zones, trade routes, pipelines, military bases, ports, and strategic waterways</i></p>
 
 ---
 
@@ -45,9 +45,10 @@ Think of it as a **command-center-grade OSINT platform** built for the modern we
 |:---|:---|
 | **Multi-Source Fusion** | Ingests AIS maritime, NASA FIRMS fire detection, ACLED conflict events, OpenSky aviation, Finnhub markets, FRED economic data, and EIA energy data |
 | **AI-Powered Analysis** | Grok AI integration for emerging pattern recognition and natural language intelligence briefs |
+| **8-Layer Geo Intelligence** | Ports (55+), Pipelines (24+), Trade Routes (12), Conflict Zones (7), Strategic Waterways (13), Military Bases (30+), Intel Hotspots (20), and live alerts — all toggleable via collapsible legend panel |
 | **Confidence Scoring** | Every alert carries a machine-generated confidence score (0.0–1.0) for decision support |
 | **Explainable Intelligence** | Each alert decomposes into **Snapshot → Drivers → Contradictions → Forecast** |
-| **Interactive Geospatial** | 2D Leaflet map with per-country click intelligence, GeoJSON boundaries, and pulsing alert markers |
+| **Interactive Geospatial** | 2D Leaflet map with country-click intel, GeoJSON boundaries, pulsing alert markers, and rich interactive popups for every layer |
 | **Fail-Soft Architecture** | Platform remains fully functional with rich seed data even when backend APIs are unreachable |
 | **Real-Time Streaming** | 15-second polling with live ticker, breaking news banners, and auto-refresh |
 
@@ -116,6 +117,16 @@ graph LR
 - **2D Mode**: Dark-themed Leaflet map with CARTO dark tiles, GeoJSON country boundaries, and animated alert markers
 - **3D Mode**: Globe.gl WebGL globe with interactive rotation
 - **Country Click Intelligence**: Click any country to reveal per-nation threat levels, active signals, confidence scores, and related alerts
+- **8-Layer Toggle Legend**: Collapsible glassmorphism panel with per-layer toggle switches and a color-coded legend
+
+### Intelligence Map Layers
+- **Conflict Zones**: Dashed-red polygons for active wars (Ukraine, Gaza, Sudan, Yemen, Myanmar, Lebanon, Pak-Afghan border) with casualty/displacement data
+- **Strategic Waterways**: Yellow diamond markers at 13 global chokepoints (Hormuz, Malacca, Suez, Panama, Bab el-Mandeb, etc.)
+- **Global Ports**: 55+ ports color-coded by type (Container, Oil, LNG, Naval, Mixed) with throughput data
+- **Oil & Gas Pipelines**: 24+ pipelines rendered as polylines (oil=orange, gas=cyan) with capacity and operator info
+- **Trade Routes**: 12 major maritime corridors as dashed arcs with volume data
+- **Military Bases**: 30+ bases as triangular markers color-coded by nation (US/NATO, Russia, China, France, UK, India)
+- **Intel Hotspots**: 20 pulsing circle markers at geopolitical monitoring points with escalation scores (1–5)
 
 ### Live Intelligence Feed
 - **Breaking News Banner**: Auto-detected critical events with flash animation  
@@ -234,6 +245,8 @@ Planetary-Intelligence-Platform/
 │   │       │   ├── Icons.tsx        # 25+ custom SVG icon components
 │   │       │   ├── LiveFeedPanel.tsx # Breaking news, ticker, event cards
 │   │       │   ├── CountryPanel.tsx  # Per-country intelligence slide-in
+│   │       │   ├── MapLegend.tsx     # Collapsible 8-layer toggle legend
+│   │       │   ├── geoData.ts       # Static geo datasets (ports, pipelines, etc.)
 │   │       │   ├── seedData.ts      # Fail-soft fallback intelligence data
 │   │       │   └── styles.css       # Complete design system (1400+ lines)
 │   │       ├── public/
@@ -287,6 +300,8 @@ Planetary-Intelligence-Platform/
 - [x] GCP Cloud Run production deployment
 - [x] Redis caching layer
 - [x] Fail-soft seed data architecture
+- [x] 8-layer geo intelligence overlay (ports, pipelines, trade routes, conflict zones, waterways, bases, hotspots)
+- [x] Collapsible map legend with toggle switches
 - [ ] WebSocket real-time streaming (replace polling)
 - [ ] User authentication and role-based access
 - [ ] Custom alert rules and notification pipelines

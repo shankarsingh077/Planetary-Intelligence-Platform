@@ -8,6 +8,18 @@ import { SEED_ALERTS, SEED_BRIEF } from "./seedData";
 import { Globe3D } from "./Globe3D";
 import { CountryPanel } from "./CountryPanel";
 import { LiveFeedPanel } from "./LiveFeedPanel";
+import { MapLegend } from "./MapLegend";
+import {
+  PORTS,
+  PIPELINES,
+  STRATEGIC_WATERWAYS,
+  CONFLICT_ZONES,
+  INTEL_HOTSPOTS,
+  MILITARY_BASES,
+  resolveTradeRouteSegments,
+  DEFAULT_LAYERS,
+} from "./geoData";
+import type { LayerVisibility } from "./geoData";
 import {
   GlobeIcon,
   SirenIcon,
@@ -142,9 +154,12 @@ export function App() {
   const [mapHeight, setMapHeight] = useState<number>(45);
   const [selectedCountry, setSelectedCountry] = useState<{ code: string; name: string } | null>(null);
   const [apiReachable, setApiReachable] = useState<boolean | null>(null);
+  const [layerVisibility, setLayerVisibility] = useState<LayerVisibility>(DEFAULT_LAYERS);
+  const [mapReady, setMapReady] = useState(0);
 
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const geoLayerRef = useRef<L.LayerGroup | null>(null);
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
   const timerRef = useRef<number | null>(null);
   const mapSectionRef = useRef<HTMLElement | null>(null);
@@ -254,6 +269,7 @@ export function App() {
         }).addTo(map);
 
         layerRef.current = L.layerGroup().addTo(map);
+        geoLayerRef.current = L.layerGroup().addTo(map);
 
         fetch("/countries-110m.geojson")
           .then((r) => r.json())
@@ -290,6 +306,7 @@ export function App() {
           .catch((err) => console.warn("Failed to load countries GeoJSON:", err));
 
         mapRef.current = map;
+        setMapReady((n) => n + 1);
       }
     }, 50);
 
@@ -354,6 +371,220 @@ export function App() {
       map.fitBounds(L.latLngBounds(latLngs).pad(0.25), { maxZoom: 5 });
     }
   }, [alerts, mapMode]);
+
+  /* ─── Geo Intelligence Layers ────────────────────────────────────────── */
+
+  const handleLayerToggle = useCallback((key: keyof LayerVisibility) => {
+    setLayerVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  useEffect(() => {
+    if (mapMode !== "2d" || !mapRef.current || !geoLayerRef.current) return;
+
+    const geoLayer = geoLayerRef.current;
+    geoLayer.clearLayers();
+
+    const portColor = (type: string) => {
+      switch (type) {
+        case 'container': return '#00b4d8';
+        case 'oil': return '#ff6b35';
+        case 'lng': return '#b44dff';
+        case 'naval': return '#ff2244';
+        case 'mixed': return '#1abc9c';
+        default: return '#888';
+      }
+    };
+
+    const baseColor = (type: string) => {
+      switch (type) {
+        case 'us-nato': return '#4488ff';
+        case 'russia': return '#ff4444';
+        case 'china': return '#ffcc00';
+        case 'france': return '#3388ff';
+        case 'uk': return '#44aaff';
+        case 'india': return '#ff8844';
+        default: return '#aa88ff';
+      }
+    };
+
+    // CONFLICT ZONES — red polygons
+    if (layerVisibility.conflictZones) {
+      for (const zone of CONFLICT_ZONES) {
+        const latlngs = zone.coords.map(c => [c[1], c[0]] as [number, number]);
+        const intensityOpacity = zone.intensity === 'high' ? 0.18 : zone.intensity === 'medium' ? 0.12 : 0.06;
+        const polygon = L.polygon(latlngs, {
+          color: '#ff2233',
+          weight: 1.5,
+          fillColor: '#ff2233',
+          fillOpacity: intensityOpacity,
+          dashArray: '4 3',
+        });
+        polygon.bindPopup(`
+          <div style="min-width:200px;font-family:'Inter',monospace;">
+            <div style="font-weight:700;color:#ff4444;font-size:12px;margin-bottom:4px;">CONFLICT ZONE</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:6px;">${zone.name}</div>
+            <div style="font-size:10px;color:#aaa;margin-bottom:4px;">Parties: ${zone.parties.join(', ')}</div>
+            ${zone.casualties ? `<div style="font-size:10px;color:#ff8888;">Casualties: ${zone.casualties}</div>` : ''}
+            ${zone.displaced ? `<div style="font-size:10px;color:#ffaa44;">Displaced: ${zone.displaced}</div>` : ''}
+            ${zone.description ? `<div style="font-size:10px;color:#ccc;margin-top:4px;">${zone.description}</div>` : ''}
+          </div>
+        `);
+        polygon.addTo(geoLayer);
+      }
+    }
+
+    // STRATEGIC WATERWAYS — yellow diamonds
+    if (layerVisibility.waterways) {
+      for (const ww of STRATEGIC_WATERWAYS) {
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="width:14px;height:14px;background:#ffd700;transform:rotate(45deg);border:1.5px solid #ffee88;box-shadow:0 0 8px rgba(255,215,0,0.5);border-radius:2px;"></div>`,
+          iconSize: [14, 14],
+          iconAnchor: [7, 7],
+        });
+        const marker = L.marker([ww.lat, ww.lon], { icon });
+        marker.bindPopup(`
+          <div style="min-width:180px;font-family:'Inter',monospace;">
+            <div style="font-weight:700;color:#ffd700;font-size:11px;margin-bottom:4px;">STRATEGIC WATERWAY</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">${ww.name}</div>
+            <div style="font-size:10px;color:#ccc;">${ww.description}</div>
+          </div>
+        `);
+        marker.addTo(geoLayer);
+      }
+    }
+
+    // PORTS
+    if (layerVisibility.ports) {
+      for (const port of PORTS) {
+        const color = portColor(port.type);
+        const marker = L.circleMarker([port.lat, port.lon], {
+          radius: port.rank && port.rank <= 10 ? 5 : 3.5,
+          color,
+          weight: 1,
+          fillColor: color,
+          fillOpacity: 0.7,
+        });
+        marker.bindPopup(`
+          <div style="min-width:200px;font-family:'Inter',monospace;">
+            <div style="font-weight:700;color:${color};font-size:11px;margin-bottom:2px;">${port.type.toUpperCase()} PORT${port.rank ? ' #' + port.rank : ''}</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">${port.name}</div>
+            <div style="font-size:10px;color:#aaa;margin-bottom:2px;">${port.country}</div>
+            <div style="font-size:10px;color:#ccc;">${port.note}</div>
+          </div>
+        `);
+        marker.addTo(geoLayer);
+      }
+    }
+
+    // PIPELINES
+    if (layerVisibility.pipelines) {
+      for (const pipe of PIPELINES) {
+        const color = pipe.type === 'oil' ? '#ff6b35' : '#00b4d8';
+        const latlngs = pipe.points.map(p => [p[1], p[0]] as [number, number]);
+        const line = L.polyline(latlngs, {
+          color,
+          weight: 1.8,
+          opacity: 0.65,
+          dashArray: pipe.status === 'operating' ? undefined : '6 4',
+        });
+        line.bindPopup(`
+          <div style="min-width:200px;font-family:'Inter',monospace;">
+            <div style="font-weight:700;color:${color};font-size:11px;margin-bottom:2px;">${pipe.type.toUpperCase()} PIPELINE</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">${pipe.name}</div>
+            <div style="font-size:10px;color:#aaa;">Capacity: ${pipe.capacity}</div>
+            <div style="font-size:10px;color:#aaa;">Length: ${pipe.length}</div>
+            <div style="font-size:10px;color:#aaa;">Operator: ${pipe.operator}</div>
+            <div style="font-size:10px;color:#888;margin-top:2px;">${pipe.countries.join(' → ')}</div>
+          </div>
+        `);
+        line.addTo(geoLayer);
+      }
+    }
+
+    // TRADE ROUTES — animated arcs
+    if (layerVisibility.tradeRoutes) {
+      const segments = resolveTradeRouteSegments();
+      const routeColor = (cat: string) => cat === 'energy' ? '#ff6b35' : cat === 'bulk' ? '#cd853f' : '#44ff88';
+      for (const seg of segments) {
+        const color = routeColor(seg.category);
+        const line = L.polyline(
+          [[seg.sourcePosition[1], seg.sourcePosition[0]], [seg.targetPosition[1], seg.targetPosition[0]]],
+          { color, weight: 1.5, opacity: 0.5, dashArray: '8 6' }
+        );
+        line.bindPopup(`
+          <div style="min-width:180px;font-family:'Inter',monospace;">
+            <div style="font-weight:700;color:${color};font-size:11px;margin-bottom:2px;">TRADE ROUTE</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">${seg.routeName}</div>
+            <div style="font-size:10px;color:#aaa;">Volume: ${seg.volumeDesc}</div>
+            <div style="font-size:10px;color:#aaa;">Type: ${seg.category}</div>
+          </div>
+        `);
+        line.addTo(geoLayer);
+      }
+    }
+
+    // MILITARY BASES
+    if (layerVisibility.militaryBases) {
+      for (const base of MILITARY_BASES) {
+        const color = baseColor(base.type);
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:10px solid ${color};filter:drop-shadow(0 0 3px ${color}60);"></div>`,
+          iconSize: [10, 10],
+          iconAnchor: [5, 10],
+        });
+        const marker = L.marker([base.lat, base.lon], { icon });
+        marker.bindPopup(`
+          <div style="min-width:180px;font-family:'Inter',monospace;">
+            <div style="font-weight:700;color:${color};font-size:11px;margin-bottom:2px;">${base.type.toUpperCase()} BASE</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">${base.name}</div>
+            ${base.country ? `<div style="font-size:10px;color:#aaa;">${base.country}</div>` : ''}
+            <div style="font-size:10px;color:#ccc;">${base.description}</div>
+          </div>
+        `);
+        marker.addTo(geoLayer);
+      }
+    }
+
+    // INTEL HOTSPOTS — pulsing dots
+    if (layerVisibility.hotspots) {
+      for (const hs of INTEL_HOTSPOTS) {
+        const score = hs.escalationScore || 2;
+        const color = score >= 5 ? '#ff2244' : score >= 4 ? '#ff6b35' : score >= 3 ? '#ffaa00' : '#44ff88';
+        const radius = score >= 4 ? 7 : 5;
+
+        // Outer pulse
+        L.circleMarker([hs.lat, hs.lon], {
+          radius: radius + 6,
+          color,
+          weight: 0.8,
+          fillColor: color,
+          fillOpacity: 0.08,
+          interactive: false,
+          className: 'marker-pulse',
+        }).addTo(geoLayer);
+
+        const marker = L.circleMarker([hs.lat, hs.lon], {
+          radius,
+          color,
+          weight: 1.5,
+          fillColor: color,
+          fillOpacity: 0.5,
+        });
+        marker.bindPopup(`
+          <div style="min-width:200px;font-family:'Inter',monospace;">
+            <div style="font-weight:700;color:${color};font-size:11px;margin-bottom:2px;">INTEL HOTSPOT${score ? ' [' + score + '/5]' : ''}</div>
+            <div style="font-size:14px;font-weight:700;margin-bottom:2px;">${hs.name}</div>
+            <div style="font-size:11px;color:#888;margin-bottom:4px;">${hs.subtext}</div>
+            <div style="font-size:10px;color:#ccc;margin-bottom:4px;">${hs.description}</div>
+            ${hs.whyItMatters ? `<div style="font-size:10px;color:#ffaa44;border-top:1px solid #333;padding-top:4px;margin-top:4px;">Why it matters: ${hs.whyItMatters}</div>` : ''}
+          </div>
+        `);
+        marker.addTo(geoLayer);
+      }
+    }
+  }, [mapMode, layerVisibility, mapReady]);
 
   useEffect(() => {
     if (mapMode === "2d" && mapRef.current) {
@@ -509,7 +740,10 @@ export function App() {
 
           <div className="map-container">
             {mapMode === "2d" ? (
-              <div id="map-canvas" key="leaflet-map" />
+              <>
+                <div id="map-canvas" key="leaflet-map" />
+                <MapLegend layers={layerVisibility} onToggle={handleLayerToggle} />
+              </>
             ) : (
               <Globe3D
                 key="globe-3d"
