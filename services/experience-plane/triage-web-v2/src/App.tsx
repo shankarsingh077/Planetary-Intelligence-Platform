@@ -5,9 +5,11 @@ import "leaflet/dist/leaflet.css";
 import { getAlerts, getBrief, getCounters, getMeta } from "./api";
 import type { Alert, AuthConfig } from "./types";
 import { SEED_ALERTS, SEED_BRIEF } from "./seedData";
+import { fetchLiveFires, fetchLiveConflicts, fetchLiveMarkets, type LiveFire, type LiveConflict, type MarketQuote } from "./liveApi";
 import { Globe3D } from "./Globe3D";
 import { CountryPanel } from "./CountryPanel";
 import { LiveFeedPanel } from "./LiveFeedPanel";
+import { LiveNewsVideoPanel } from "./LiveNewsVideoPanel";
 import { MapLegend } from "./MapLegend";
 import {
   PORTS,
@@ -156,11 +158,15 @@ export function App() {
   const [apiReachable, setApiReachable] = useState<boolean | null>(null);
   const [layerVisibility, setLayerVisibility] = useState<LayerVisibility>(DEFAULT_LAYERS);
   const [mapReady, setMapReady] = useState(0);
+  const [liveFires, setLiveFires] = useState<LiveFire[]>([]);
+  const [liveConflicts, setLiveConflicts] = useState<LiveConflict[]>([]);
+  const [liveMarkets, setLiveMarkets] = useState<Record<string, MarketQuote> | null>(null);
 
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
   const geoLayerRef = useRef<L.LayerGroup | null>(null);
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
+  const liveLayerRef = useRef<L.LayerGroup | null>(null);
   const timerRef = useRef<number | null>(null);
   const mapSectionRef = useRef<HTMLElement | null>(null);
 
@@ -185,6 +191,24 @@ export function App() {
 
   const refreshAll = useCallback(async () => {
     setError("");
+
+    // Fetch live data in parallel (non-blocking)
+    const livePromises = Promise.allSettled([
+      fetchLiveFires(),
+      fetchLiveConflicts(),
+      fetchLiveMarkets(),
+    ]).then(([firesResult, conflictsResult, marketsResult]) => {
+      if (firesResult.status === "fulfilled" && firesResult.value) {
+        setLiveFires(firesResult.value);
+      }
+      if (conflictsResult.status === "fulfilled" && conflictsResult.value) {
+        setLiveConflicts(conflictsResult.value);
+      }
+      if (marketsResult.status === "fulfilled" && marketsResult.value) {
+        setLiveMarkets(marketsResult.value);
+      }
+    });
+
     try {
       const [, nextAlerts, nextBrief, counters] = await Promise.all([
         getMeta(),
@@ -221,6 +245,8 @@ export function App() {
       setApiReachable(false);
       setLiveState("LIVE SEED");
     }
+
+    await livePromises;
   }, [alerts.length, brief]);
 
   useEffect(() => {
@@ -270,6 +296,7 @@ export function App() {
 
         layerRef.current = L.layerGroup().addTo(map);
         geoLayerRef.current = L.layerGroup().addTo(map);
+        liveLayerRef.current = L.layerGroup().addTo(map);
 
         fetch("/countries-110m.geojson")
           .then((r) => r.json())
@@ -586,6 +613,71 @@ export function App() {
     }
   }, [mapMode, layerVisibility, mapReady]);
 
+  /* ─── Live Data Map Overlay (fires, conflicts) ─────────────────────── */
+
+  useEffect(() => {
+    if (mapMode !== "2d" || !mapRef.current || !liveLayerRef.current) return;
+
+    const liveLayer = liveLayerRef.current;
+    liveLayer.clearLayers();
+
+    // Render live FIRMS fire hotspots
+    if (liveFires.length > 0) {
+      for (const fire of liveFires) {
+        if (!fire.lat || !fire.lon) continue;
+        const r = Math.min(4 + (fire.frp || 0) / 50, 10);
+        const marker = L.circleMarker([fire.lat, fire.lon], {
+          radius: r,
+          color: "#ff6600",
+          weight: 0.5,
+          fillColor: "#ff4400",
+          fillOpacity: 0.6,
+        });
+        marker.bindPopup(`
+          <div style="min-width:180px;font-family:'Inter',monospace;">
+            <div style="font-weight:700;color:#ff6600;font-size:11px;margin-bottom:2px;">🔥 NASA FIRMS FIRE DETECTION</div>
+            <div style="font-size:12px;margin-bottom:4px;">FRP: <b>${fire.frp?.toFixed(1)} MW</b></div>
+            <div style="font-size:11px;color:#ccc;">Brightness: ${fire.brightness?.toFixed(1)} K</div>
+            <div style="font-size:11px;color:#ccc;">Confidence: ${fire.confidence}</div>
+            <div style="font-size:10px;color:#888;margin-top:4px;">${fire.acq_date} ${fire.acq_time} · ${fire.satellite}</div>
+            <div style="font-size:10px;color:#888;">${fire.lat.toFixed(3)}°, ${fire.lon.toFixed(3)}°</div>
+          </div>
+        `);
+        marker.addTo(liveLayer);
+      }
+    }
+
+    // Render live ACLED conflict events
+    if (liveConflicts.length > 0) {
+      for (const ev of liveConflicts) {
+        if (!ev.lat || !ev.lon) continue;
+        const sev = ev.fatalities > 10 ? "critical" : ev.fatalities > 0 ? "high" : "medium";
+        const color = sev === "critical" ? "#ff2244" : sev === "high" ? "#ff8800" : "#ffaa00";
+        const r = sev === "critical" ? 8 : sev === "high" ? 6 : 4;
+
+        const marker = L.circleMarker([ev.lat, ev.lon], {
+          radius: r,
+          color,
+          weight: 1.5,
+          fillColor: color,
+          fillOpacity: 0.5,
+        });
+        marker.bindPopup(`
+          <div style="min-width:200px;font-family:'Inter',monospace;">
+            <div style="font-weight:700;color:${color};font-size:11px;margin-bottom:2px;">⚔️ ACLED CONFLICT EVENT</div>
+            <div style="font-size:13px;font-weight:700;margin-bottom:2px;">${ev.type}</div>
+            <div style="font-size:11px;color:#ccc;margin-bottom:4px;">${ev.location}, ${ev.country}</div>
+            ${ev.actor1 ? `<div style="font-size:10px;color:#aaa;">Actor 1: ${ev.actor1}</div>` : ""}
+            ${ev.actor2 ? `<div style="font-size:10px;color:#aaa;">Actor 2: ${ev.actor2}</div>` : ""}
+            <div style="font-size:11px;color:#ff6644;margin-top:4px;">Fatalities: ${ev.fatalities}</div>
+            <div style="font-size:10px;color:#888;margin-top:2px;">${ev.date} · ${ev.source}</div>
+          </div>
+        `);
+        marker.addTo(liveLayer);
+      }
+    }
+  }, [mapMode, liveFires, liveConflicts, mapReady]);
+
   useEffect(() => {
     if (mapMode === "2d" && mapRef.current) {
       setTimeout(() => mapRef.current?.invalidateSize(), 100);
@@ -700,6 +792,25 @@ export function App() {
           </button>
         </div>
       </header>
+
+      {/* Market Ticker Bar */}
+      {liveMarkets && (
+        <div className="market-ticker-bar">
+          {Object.entries(liveMarkets).map(([name, q]) => {
+            if (!q || q.error) return null;
+            const isUp = (q.change_pct || 0) >= 0;
+            return (
+              <span key={name} className="market-ticker-item">
+                <span className="market-ticker-name">{name.replace(/_/g, " ").toUpperCase()}</span>
+                <span className="market-ticker-price">${typeof q.price === "number" ? q.price.toFixed(2) : "—"}</span>
+                <span className={`market-ticker-change ${isUp ? "up" : "down"}`}>
+                  {isUp ? "▲" : "▼"} {Math.abs(q.change_pct || 0).toFixed(2)}%
+                </span>
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="main-content">
@@ -852,6 +963,9 @@ export function App() {
               <pre className="brief-output">{brief}</pre>
             </div>
           </article>
+
+          {/* Live News Video Panel */}
+          <LiveNewsVideoPanel />
 
           {/* Error Panel */}
           {error && (

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from .auth import build_auth_context
 from .events_source import build_event_source
+from .live_routes import router as live_router
 from .policy import AuthContext, authorize
 from .store import AssignmentStore
 
@@ -30,6 +31,7 @@ app = FastAPI(title="Planetary Intelligence Triage API", version="0.1.0")
 # Serve /assets from the Vite build output
 ASSETS_DIR = WEB_DIR / "assets" if (WEB_DIR / "assets").exists() else WEB_DIR
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+app.include_router(live_router)
 
 
 class ScopeModel(BaseModel):

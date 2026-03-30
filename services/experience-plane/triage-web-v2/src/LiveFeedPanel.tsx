@@ -1,11 +1,12 @@
 /**
  * LiveFeedPanel – Real-time intelligence event feed
- * Uses SVG icons instead of emoji. Connected to seed data.
+ * Uses SVG icons instead of emoji. Connected to LIVE API with seed fallback.
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { RadioIcon, ZapIcon, AnchorIcon, TrendingUpIcon, FlameIcon, PlaneIcon, SwordsIcon, ShieldIcon, BoltIcon, BuildingIcon, SignalIcon, PinIcon } from "./Icons";
 import { SEED_FEED_EVENTS, type FeedItem } from "./seedData";
+import { fetchLiveEvents } from "./liveApi";
 
 interface LiveFeedPanelProps {
   isVisible?: boolean;
@@ -49,6 +50,35 @@ export function LiveFeedPanel({ isVisible = true }: LiveFeedPanelProps) {
   const tickerRef = useRef<HTMLDivElement>(null);
 
   const loadEvents = useCallback(async () => {
+    try {
+      // Try live API first
+      const liveEvents = await fetchLiveEvents();
+      if (liveEvents && liveEvents.length > 0) {
+        const mapped: FeedItem[] = liveEvents.map((ev) => ({
+          id: ev.id,
+          source: ev.source,
+          category: ev.category || "default",
+          severity: (ev.severity || "medium") as FeedItem["severity"],
+          title: ev.title,
+          location: ev.location || undefined,
+          timestamp: ev.timestamp || new Date().toISOString(),
+        }));
+        setEvents(mapped);
+        setLastUpdate(new Date().toLocaleTimeString("en-US", { hour12: false }));
+        setIsLoading(false);
+
+        const critical = mapped.find((e) => e.severity === "critical");
+        if (critical && !breakingNews) {
+          setBreakingNews(critical);
+          setTimeout(() => setBreakingNews(null), 15000);
+        }
+        return;
+      }
+    } catch {
+      // Fall through to seed
+    }
+
+    // Also try the legacy /v1/events endpoint
     try {
       const response = await fetch("/v1/events", {
         headers: {

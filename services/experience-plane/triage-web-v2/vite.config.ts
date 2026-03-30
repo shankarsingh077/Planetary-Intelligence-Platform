@@ -5,6 +5,36 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    proxy: {
+      "/v1": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/health": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/alerts": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/brief": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/counters": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/meta": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/assign": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: "dist",

@@ -19,7 +19,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 # Minimal runtime dependencies for web interface deployment.
-RUN pip install --no-cache-dir fastapi uvicorn pydantic google-cloud-storage redis
+RUN pip install --no-cache-dir fastapi uvicorn pydantic google-cloud-storage redis httpx feedparser
 
 COPY . /app
 COPY --from=webbuild /web/dist /app/services/experience-plane/triage-web-v2/dist
