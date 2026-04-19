@@ -17,7 +17,7 @@ interface Channel {
   thumbnail?: string;
 }
 
-const LIVE_CHANNELS: Channel[] = [
+export const LIVE_CHANNELS: Channel[] = [
   {
     id: "aljaz",
     name: "Al Jazeera English",
@@ -90,15 +90,29 @@ const LIVE_CHANNELS: Channel[] = [
   },
 ];
 
-export function LiveNewsVideoPanel() {
-  const [activeChannel, setActiveChannel] = useState<Channel>(LIVE_CHANNELS[0]);
+interface LiveNewsVideoPanelProps {
+  selectedChannelId?: string;
+  onSelectChannel?: (channelId: string) => void;
+}
+
+export function LiveNewsVideoPanel({ selectedChannelId, onSelectChannel }: LiveNewsVideoPanelProps) {
+  const selectedFromProp = LIVE_CHANNELS.find((ch) => ch.id === selectedChannelId);
+  const [activeChannel, setActiveChannel] = useState<Channel>(selectedFromProp ?? LIVE_CHANNELS[0]);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showChannelPicker, setShowChannelPicker] = useState(false);
   const [autoRotate, setAutoRotate] = useState(false);
   const rotateRef = useRef<number | null>(null);
 
   const switchChannel = useCallback((ch: Channel) => {
     setActiveChannel(ch);
-  }, []);
+    onSelectChannel?.(ch.id);
+    setShowChannelPicker(false);
+  }, [onSelectChannel]);
+
+  useEffect(() => {
+    if (!selectedFromProp) return;
+    setActiveChannel(selectedFromProp);
+  }, [selectedFromProp]);
 
   // Auto-rotate channels (every 60s)
   useEffect(() => {
@@ -122,15 +136,22 @@ export function LiveNewsVideoPanel() {
       <div className="panel-header">
         <div className="panel-header-left">
           <span className="panel-icon"><RadioIcon size={15} /></span>
-          <h2 className="panel-title">Live News Channels</h2>
+          <h2 className="panel-title">Live News</h2>
         </div>
         <div className="video-header-controls">
+          <button
+            className="video-channel-select-btn"
+            onClick={() => setShowChannelPicker(!showChannelPicker)}
+            title="Switch channel"
+          >
+            {activeChannel.name} ▾
+          </button>
           <button
             className={`video-rotate-btn ${autoRotate ? "active" : ""}`}
             onClick={() => setAutoRotate(!autoRotate)}
             title="Auto-rotate channels"
           >
-            ↻ {autoRotate ? "ON" : "OFF"}
+            ↻
           </button>
           <button
             className="video-expand-btn"
@@ -142,6 +163,39 @@ export function LiveNewsVideoPanel() {
         </div>
       </div>
 
+      {/* Channel picker dropdown — only shows when toggled */}
+      {showChannelPicker && (
+        <div className="video-channel-picker" style={{
+          maxHeight: '180px',
+          overflowY: 'auto',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--panel-bg)',
+        }}>
+          {LIVE_CHANNELS.map((ch) => (
+            <button
+              key={ch.id}
+              className={`video-channel-btn ${ch.id === activeChannel.id ? "active" : ""}`}
+              onClick={() => switchChannel(ch)}
+              style={{
+                display: 'flex',
+                width: '100%',
+                padding: '4px 10px',
+                justifyContent: 'space-between',
+                background: ch.id === activeChannel.id ? 'rgba(68,255,136,0.1)' : 'transparent',
+                border: 'none',
+                color: 'inherit',
+                cursor: 'pointer',
+                fontSize: '10px',
+                textAlign: 'left',
+              }}
+            >
+              <span className="ch-name">{ch.name}</span>
+              <span className="ch-cat" style={{ color: '#888', fontSize: '9px' }}>{ch.category}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="video-content">
         <div className="video-player">
           <iframe
@@ -151,10 +205,7 @@ export function LiveNewsVideoPanel() {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             style={{
-              width: "100%",
-              height: isExpanded ? "360px" : "200px",
               border: "none",
-              borderRadius: "6px",
               background: "#0a0e1a",
             }}
           />
@@ -163,19 +214,6 @@ export function LiveNewsVideoPanel() {
             <span className="video-channel-name">{activeChannel.name}</span>
             <span className="video-channel-category">{activeChannel.category}</span>
           </div>
-        </div>
-
-        <div className="video-channel-list">
-          {LIVE_CHANNELS.map((ch) => (
-            <button
-              key={ch.id}
-              className={`video-channel-btn ${ch.id === activeChannel.id ? "active" : ""}`}
-              onClick={() => switchChannel(ch)}
-            >
-              <span className="ch-name">{ch.name}</span>
-              <span className="ch-cat">{ch.category}</span>
-            </button>
-          ))}
         </div>
       </div>
     </article>

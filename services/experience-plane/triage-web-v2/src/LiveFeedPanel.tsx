@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { RadioIcon, ZapIcon, AnchorIcon, TrendingUpIcon, FlameIcon, PlaneIcon, SwordsIcon, ShieldIcon, BoltIcon, BuildingIcon, SignalIcon, PinIcon } from "./Icons";
 import { SEED_FEED_EVENTS, type FeedItem } from "./seedData";
 import { fetchLiveEvents } from "./liveApi";
+import { getSourceCredibility } from "./liveAlertUtils";
 
 interface LiveFeedPanelProps {
   isVisible?: boolean;
@@ -47,6 +48,7 @@ export function LiveFeedPanel({ isVisible = true }: LiveFeedPanelProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string>("");
   const [breakingNews, setBreakingNews] = useState<FeedItem | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const tickerRef = useRef<HTMLDivElement>(null);
 
   const loadEvents = useCallback(async () => {
@@ -54,7 +56,9 @@ export function LiveFeedPanel({ isVisible = true }: LiveFeedPanelProps) {
       // Try live API first
       const liveEvents = await fetchLiveEvents();
       if (liveEvents && liveEvents.length > 0) {
-        const mapped: FeedItem[] = liveEvents.map((ev) => ({
+        const mapped: FeedItem[] = [...liveEvents]
+          .sort((a, b) => Date.parse(b.timestamp || "") - Date.parse(a.timestamp || ""))
+          .map((ev) => ({
           id: ev.id,
           source: ev.source,
           category: ev.category || "default",
@@ -62,6 +66,7 @@ export function LiveFeedPanel({ isVisible = true }: LiveFeedPanelProps) {
           title: ev.title,
           location: ev.location || undefined,
           timestamp: ev.timestamp || new Date().toISOString(),
+          link: ev.link,
         }));
         setEvents(mapped);
         setLastUpdate(new Date().toLocaleTimeString("en-US", { hour12: false }));
@@ -100,16 +105,12 @@ export function LiveFeedPanel({ isVisible = true }: LiveFeedPanelProps) {
       // Fall back to seed data
     }
 
-    // Refresh timestamps on seed events to keep them feeling live
-    const refreshed = SEED_FEED_EVENTS.map((e, i) => ({
-      ...e,
-      timestamp: new Date(Date.now() - (i + 1) * 180000).toISOString(),
-    }));
-    setEvents(refreshed);
+    // Use seed data as-is without faking timestamps
+    setEvents(SEED_FEED_EVENTS);
     setLastUpdate(new Date().toLocaleTimeString("en-US", { hour12: false }));
     setIsLoading(false);
 
-    const critical = refreshed.find((e) => e.severity === "critical");
+    const critical = SEED_FEED_EVENTS.find((e) => e.severity === "critical");
     if (critical && !breakingNews) {
       setBreakingNews(critical);
       setTimeout(() => setBreakingNews(null), 15000);
@@ -125,7 +126,7 @@ export function LiveFeedPanel({ isVisible = true }: LiveFeedPanelProps) {
   if (!isVisible) return null;
 
   return (
-    <article className="panel live-feed-panel span-2">
+    <article className="panel live-feed-panel">
       {breakingNews && (
         <div className="breaking-news-banner">
           <span className="breaking-badge"><ZapIcon size={10} color="#fff" /> BREAKING</span>
@@ -142,10 +143,6 @@ export function LiveFeedPanel({ isVisible = true }: LiveFeedPanelProps) {
           <h2 className="panel-title">Live Intelligence Feed</h2>
         </div>
         <div className="feed-header-right">
-          <span className="feed-status">
-            <span className="feed-status-dot" />
-            LIVE
-          </span>
           <span className="panel-time">Updated {lastUpdate}</span>
         </div>
       </div>
@@ -179,35 +176,61 @@ export function LiveFeedPanel({ isVisible = true }: LiveFeedPanelProps) {
           </div>
         ) : (
           <div className="feed-list">
-            {events.map((evt, idx) => (
-              <div
-                key={evt.id}
-                className={`feed-item sev-${evt.severity}`}
-                style={{ animationDelay: `${idx * 60}ms` }}
-              >
-                <div className="feed-item-header">
-                  <span className="feed-item-icon">
-                    {CATEGORY_ICONS[evt.category] || CATEGORY_ICONS.default}
-                  </span>
-                  <span className="feed-item-source">{evt.source}</span>
-                  <span className="feed-item-time">{formatRelativeTime(evt.timestamp)}</span>
-                  <span
-                    className="feed-item-severity"
-                    style={{ color: SEVERITY_COLORS[evt.severity] }}
-                  >
-                    {evt.severity.toUpperCase()}
-                  </span>
-                </div>
-                <div className="feed-item-body">
-                  <p className="feed-item-title">{evt.title}</p>
-                  {evt.location && (
-                    <span className="feed-item-location"><PinIcon size={10} /> {evt.location}</span>
+            {events.map((evt, idx) => {
+              const isExpanded = expandedId === evt.id;
+              const credibility = getSourceCredibility(evt.source);
+              return (
+                <div
+                  key={evt.id}
+                  className={`feed-item sev-${evt.severity} ${isExpanded ? 'expanded' : ''}`}
+                  style={{ animationDelay: `${idx * 60}ms`, cursor: 'pointer' }}
+                  onClick={() => setExpandedId(isExpanded ? null : evt.id)}
+                >
+                  <div className="feed-item-header">
+                    <span className="feed-item-icon">
+                      {CATEGORY_ICONS[evt.category] || CATEGORY_ICONS.default}
+                    </span>
+                    <span className="feed-item-source">{evt.source}</span>
+                    <span className="feed-item-time">{formatRelativeTime(evt.timestamp)}</span>
+                    <span
+                      className="feed-item-severity"
+                      style={{ color: SEVERITY_COLORS[evt.severity] }}
+                    >
+                      {evt.severity.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="feed-item-body">
+                    <p className="feed-item-title">{evt.title}</p>
+                    {evt.location && (
+                      <span className="feed-item-location"><PinIcon size={10} /> {evt.location}</span>
+                    )}
+                  </div>
+                  {isExpanded && (
+                    <div className="feed-item-details" style={{ padding: '6px 10px', fontSize: 10, color: '#aaa', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 4 }}>
+                      <div><strong>Category:</strong> {evt.category}</div>
+                      <div><strong>Severity:</strong> {evt.severity}</div>
+                      <div><strong>Source:</strong> {evt.source}</div>
+                      <div><strong>Credibility:</strong> <span style={{ color: credibility.color }}>{credibility.label}</span> ({Math.round(credibility.score * 100)}%)</div>
+                      <div><strong>Assessment:</strong> {credibility.note}</div>
+                      {evt.location && <div><strong>Location:</strong> {evt.location}</div>}
+                      <div><strong>Time:</strong> {new Date(evt.timestamp).toLocaleString()}</div>
+                      {evt.link ? (
+                        <div style={{ marginTop: 4 }}>
+                          <a href={evt.link} target="_blank" rel="noreferrer" style={{ color: "#67d4ff" }}>
+                            Open source
+                          </a>
+                        </div>
+                      ) : null}
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
+        <div style={{ padding: '6px 10px', fontSize: 9, color: '#555', fontFamily: 'monospace', borderTop: '1px solid var(--border)' }}>
+          GDELT · ACLED · NASA FIRMS · RSS Feeds
+        </div>
       </div>
     </article>
   );

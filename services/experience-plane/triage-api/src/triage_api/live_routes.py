@@ -2,19 +2,28 @@
 live_routes.py — Live data proxy endpoints
 
 Proxies external API calls to keep keys server-side.
-Each endpoint returns: { success: bool, data: ..., source: str, timestamp: str }
+Each endpoint returns: { success: bool, data: ..., source: str, source_url: str, timestamp: str }
 On failure returns { success: false, error: str } so frontend can fall back to seed.
+
+Phase 2+3 enhancements:
+- TTL caching to avoid redundant external calls
+- source_url for credibility/provenance layer
+- Server-side news region filtering
+- /conflict-stats aggregation endpoint
 """
 
 from __future__ import annotations
 
 import os
 import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+
+from .cache import cache
 
 router = APIRouter(prefix="/v1/live", tags=["live"])
 
@@ -25,12 +34,46 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _ok(data: Any, source: str) -> dict:
-    return {"success": True, "data": data, "source": source, "timestamp": _now_iso()}
+def _ok(data: Any, source: str, source_url: str = "") -> dict:
+    return {
+        "success": True,
+        "data": data,
+        "source": source,
+        "source_url": source_url,
+        "timestamp": _now_iso(),
+        "item_count": len(data) if isinstance(data, list) else 0,
+    }
 
 
 def _fail(source: str, error: str) -> dict:
     return {"success": False, "data": None, "source": source, "error": error, "timestamp": _now_iso()}
+
+
+def _parse_timestamp(value: str | None) -> float:
+    if not value:
+        return 0.0
+
+    text = str(value).strip()
+    if not text:
+        return 0.0
+
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).timestamp()
+    except Exception:
+        pass
+
+    try:
+        return parsedate_to_datetime(text).timestamp()
+    except Exception:
+        pass
+
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(text, fmt).replace(tzinfo=timezone.utc).timestamp()
+        except Exception:
+            continue
+
+    return 0.0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -40,9 +83,13 @@ def _fail(source: str, error: str) -> dict:
 @router.get("/fires")
 async def live_fires():
     """Fetch active fire hotspots from NASA FIRMS (last 24h, VIIRS/MODIS)."""
+    cached = cache.get("fires", ttl_seconds=300)
+    if cached:
+        return cached
+
     key = os.getenv("NASA_FIRMS_API_KEY", "")
     if not key:
-        return _fail("nasa_firms", "NASA_FIRMS_API_KEY not set")
+        return cache.get_last_known_good("fires", "nasa_firms") or _fail("nasa_firms", "NASA_FIRMS_API_KEY not set")
 
     url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{key}/VIIRS_SNPP_NRT/world/1"
 
@@ -53,7 +100,7 @@ async def live_fires():
 
         lines = resp.text.strip().split("\n")
         if len(lines) < 2:
-            return _fail("nasa_firms", "No data returned")
+            return cache.get_last_known_good("fires", "nasa_firms") or _fail("nasa_firms", "No data returned")
 
         headers = lines[0].split(",")
         fires = []
@@ -76,9 +123,11 @@ async def live_fires():
             except (ValueError, KeyError):
                 continue
 
-        return _ok(fires, "nasa_firms")
+        result = _ok(fires, "nasa_firms", source_url="https://firms.modaps.eosdis.nasa.gov/")
+        cache.set("fires", result)
+        return result
     except Exception as e:
-        return _fail("nasa_firms", str(e))
+        return cache.get_last_known_good("fires", "nasa_firms") or _fail("nasa_firms", str(e))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -88,11 +137,15 @@ async def live_fires():
 @router.get("/conflicts")
 async def live_conflicts():
     """Fetch recent conflict events from ACLED (last 7 days)."""
+    cached = cache.get("conflicts", ttl_seconds=600)
+    if cached:
+        return cached
+
     email = os.getenv("ACLED_EMAIL", "")
     password = os.getenv("ACLED_PASSWORD", "")
 
     if not email or not password:
-        return _fail("acled", "ACLED credentials not set")
+        return cache.get_last_known_good("conflicts", "acled") or _fail("acled", "ACLED credentials not set")
 
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
@@ -111,7 +164,7 @@ async def live_conflicts():
             access_token = token_resp.json().get("access_token", "")
 
             if not access_token:
-                return _fail("acled", "Failed to obtain ACLED token")
+                return cache.get_last_known_good("conflicts", "acled") or _fail("acled", "Failed to obtain ACLED token")
 
             # Fetch recent events
             resp = await client.get(
@@ -147,9 +200,11 @@ async def live_conflicts():
             except (ValueError, KeyError):
                 continue
 
-        return _ok(events, "acled")
+        result = _ok(events, "acled", source_url="https://acleddata.com/")
+        cache.set("conflicts", result)
+        return result
     except Exception as e:
-        return _fail("acled", str(e))
+        return cache.get_last_known_good("conflicts", "acled") or _fail("acled", str(e))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -157,21 +212,37 @@ async def live_conflicts():
 # ──────────────────────────────────────────────────────────────────────────────
 
 FINNHUB_SYMBOLS = {
-    "brent_crude": "OANDA:BCO_USD",
-    "gold": "OANDA:XAU_USD",
-    "sp500": "OANDA:SPX500_USD",
-    "natural_gas": "OANDA:NATGAS_USD",
-    "eurusd": "OANDA:EUR_USD",
-    "usdjpy": "OANDA:USD_JPY",
+    # Commodities (ETFs that track them - work on free tier)
+    "brent_crude": "BNO",       # United States Brent Oil Fund
+    "wti_crude": "USO",         # United States Oil Fund
+    "gold": "GLD",              # SPDR Gold Shares
+    "silver": "SLV",            # iShares Silver Trust
+    "natural_gas": "UNG",       # United States Natural Gas Fund
+    "copper": "CPER",           # United States Copper Index Fund
+    # Major Indices (ETFs)
+    "sp500": "SPY",             # SPDR S&P 500 ETF
+    "dow_jones": "DIA",         # SPDR Dow Jones ETF
+    "nasdaq": "QQQ",            # Invesco QQQ Trust (NASDAQ-100)
+    "russell2000": "IWM",       # iShares Russell 2000
+    # Forex proxies (ETFs)
+    "us_dollar": "UUP",         # Invesco DB US Dollar Index
+    "euro": "FXE",              # Invesco CurrencyShares Euro Trust
+    # Defense & Energy stocks (geopolitically relevant)
+    "lockheed": "LMT",          # Lockheed Martin
+    "exxon": "XOM",             # Exxon Mobil
 }
 
 
 @router.get("/markets")
 async def live_markets():
     """Fetch commodity & index quotes from Finnhub."""
+    cached = cache.get("markets", ttl_seconds=30)
+    if cached:
+        return cached
+
     key = os.getenv("FINNHUB_API_KEY", "")
     if not key:
-        return _fail("finnhub", "FINNHUB_API_KEY not set")
+        return cache.get_last_known_good("markets", "finnhub") or _fail("finnhub", "FINNHUB_API_KEY not set")
 
     try:
         quotes = {}
@@ -197,9 +268,11 @@ async def live_markets():
                 except Exception:
                     quotes[name] = {"symbol": symbol, "error": "fetch_failed"}
 
-        return _ok(quotes, "finnhub")
+        result = _ok(quotes, "finnhub", source_url="https://finnhub.io/")
+        cache.set("markets", result)
+        return result
     except Exception as e:
-        return _fail("finnhub", str(e))
+        return cache.get_last_known_good("markets", "finnhub") or _fail("finnhub", str(e))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -266,10 +339,12 @@ async def live_economic():
 # ──────────────────────────────────────────────────────────────────────────────
 
 EIA_SERIES = {
-    "crude_stocks": "PET.WCESTUS1.W",
-    "spr_level": "PET.WCSSTUS1.W",
-    "crude_production": "PET.WCRFPUS2.W",
-    "gasoline_stocks": "PET.WGTSTUS1.W",
+    "crude_stocks": ("PET.WCESTUS1.W", "Crude Oil Stocks (Mbbl)"),
+    "spr_level": ("PET.WCSSTUS1.W", "SPR Level (Mbbl)"),
+    "crude_production": ("PET.WCRFPUS2.W", "Crude Production (Mbbl/d)"),
+    "gasoline_stocks": ("PET.WGTSTUS1.W", "Gasoline Stocks (Mbbl)"),
+    "distillate_stocks": ("PET.WDISTUS1.W", "Distillate Stocks (Mbbl)"),
+    "crude_imports": ("PET.WCRIMUS2.W", "Crude Imports (Mbbl/d)"),
 }
 
 
@@ -280,35 +355,61 @@ async def live_energy():
     if not key:
         return _fail("eia", "EIA_API_KEY not set")
 
+    # Check cache first
+    cached = cache.get("energy")
+    if cached:
+        return _ok(cached, "eia", "https://www.eia.gov/opendata/")
+
     try:
-        series_data = {}
+        series_data: dict = {}
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            for name, series_id in EIA_SERIES.items():
+            for name, (series_id, label) in EIA_SERIES.items():
                 try:
+                    # EIA v2 API format
                     resp = await client.get(
-                        "https://api.eia.gov/v2/seriesid/" + series_id,
-                        params={"api_key": key},
+                        f"https://api.eia.gov/v2/seriesid/{series_id}",
+                        params={"api_key": key, "num": "2"},
                     )
+                    if resp.status_code != 200:
+                        # Try alternative v1 endpoint
+                        resp = await client.get(
+                            "https://api.eia.gov/series/",
+                            params={"api_key": key, "series_id": series_id},
+                        )
                     resp.raise_for_status()
                     payload = resp.json()
+
+                    # v2 format
                     data_list = payload.get("response", {}).get("data", [])
+                    if not data_list:
+                        # v1 format fallback
+                        series_list = payload.get("series", [])
+                        if series_list:
+                            data_list = [
+                                {"value": d[1], "period": d[0]}
+                                for d in series_list[0].get("data", [])[:2]
+                            ]
+
                     if data_list:
                         latest = data_list[0]
                         prev = data_list[1] if len(data_list) > 1 else None
-                        val = float(latest.get("value", 0))
-                        prev_val = float(prev.get("value", 0)) if prev else 0
+                        val = float(latest.get("value", 0) or 0)
+                        prev_val = float(prev.get("value", 0) or 0) if prev else 0
                         series_data[name] = {
                             "series_id": series_id,
+                            "label": label,
                             "value": val,
                             "period": latest.get("period", ""),
-                            "units": payload.get("response", {}).get("units", ""),
                             "previous": prev_val,
                             "change": round(val - prev_val, 2),
+                            "change_pct": round((val - prev_val) / prev_val * 100, 2) if prev_val else 0,
                         }
                 except Exception:
-                    series_data[name] = {"series_id": series_id, "error": "fetch_failed"}
+                    series_data[name] = {"series_id": series_id, "label": label, "error": "fetch_failed"}
 
-        return _ok(series_data, "eia")
+        if series_data:
+            cache.set("energy", series_data)
+        return _ok(series_data, "eia", "https://www.eia.gov/opendata/")
     except Exception as e:
         return _fail("eia", str(e))
 
@@ -396,18 +497,34 @@ async def live_corridors():
 # ──────────────────────────────────────────────────────────────────────────────
 
 RSS_FEEDS = [
+    # ─── Major Wire Services & World News ─────────────────────
     {"name": "Reuters World", "url": "https://feeds.reuters.com/reuters/worldNews", "category": "world"},
     {"name": "AP Top News", "url": "https://rsshub.app/apnews/topics/apf-topnews", "category": "world"},
     {"name": "Al Jazeera", "url": "https://www.aljazeera.com/xml/rss/all.xml", "category": "world"},
     {"name": "BBC World", "url": "https://feeds.bbci.co.uk/news/world/rss.xml", "category": "world"},
+    {"name": "France24", "url": "https://www.france24.com/en/rss", "category": "world"},
+    {"name": "DW News", "url": "https://rss.dw.com/xml/rss-en-world", "category": "world"},
+    {"name": "NPR World", "url": "https://feeds.npr.org/1004/rss.xml", "category": "world"},
+    # ─── Security & Defense ───────────────────────────────────
     {"name": "Defense One", "url": "https://www.defenseone.com/rss/", "category": "defense"},
     {"name": "The War Zone", "url": "https://www.thedrive.com/the-war-zone/feed", "category": "defense"},
-    {"name": "Maritime Executive", "url": "https://maritime-executive.com/rss", "category": "maritime"},
+    {"name": "Military Times", "url": "https://www.militarytimes.com/arc/outboundfeeds/rss/", "category": "defense"},
+    {"name": "Janes", "url": "https://www.janes.com/feeds/news", "category": "defense"},
+    # ─── Finance & Energy ─────────────────────────────────────
     {"name": "CNBC Markets", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258", "category": "finance"},
     {"name": "Reuters Business", "url": "https://feeds.reuters.com/reuters/businessNews", "category": "finance"},
+    {"name": "Bloomberg Energy", "url": "https://feeds.bloomberg.com/energy/news.rss", "category": "energy"},
+    {"name": "OilPrice.com", "url": "https://oilprice.com/rss/main", "category": "energy"},
+    # ─── Maritime & Logistics ─────────────────────────────────
+    {"name": "Maritime Executive", "url": "https://maritime-executive.com/rss", "category": "maritime"},
+    {"name": "gCaptain", "url": "https://gcaptain.com/feed/", "category": "maritime"},
+    # ─── Cyber & Technology ───────────────────────────────────
     {"name": "Ars Technica Security", "url": "https://feeds.arstechnica.com/arstechnica/security", "category": "cyber"},
     {"name": "Threat Post", "url": "https://threatpost.com/feed/", "category": "cyber"},
+    {"name": "The Record", "url": "https://therecord.media/feed", "category": "cyber"},
+    # ─── Climate & Environment ────────────────────────────────
     {"name": "Climate Home News", "url": "https://www.climatechangenews.com/feed/", "category": "climate"},
+    {"name": "Carbon Brief", "url": "https://www.carbonbrief.org/feed", "category": "climate"},
 ]
 
 
@@ -419,7 +536,7 @@ def _parse_rss_xml(xml_text: str, feed_name: str, category: str) -> list[dict]:
 
         # RSS 2.0
         rss_items = root.findall(".//item")
-        for item in rss_items[:5]:
+        for item in rss_items[:8]:
             title = (item.findtext("title") or "").strip()
             link = (item.findtext("link") or "").strip()
             pub_date = (item.findtext("pubDate") or "").strip()
@@ -464,32 +581,57 @@ def _parse_rss_xml(xml_text: str, feed_name: str, category: str) -> list[dict]:
     return items
 
 
+REGION_KEYWORDS: dict[str, list[str]] = {
+    "us": ["united states", "us ", "usa", "america", "washington", "trump", "biden", "congress", "pentagon", "white house", "federal"],
+    "europe": ["europe", "eu ", "nato", "uk", "britain", "germany", "france", "ukraine", "russia", "brussels", "london", "paris", "berlin"],
+    "middle-east": ["middle east", "iran", "israel", "gaza", "yemen", "saudi", "syria", "iraq", "lebanon", "houthi", "hezbollah"],
+    "africa": ["africa", "niger", "sudan", "ethiopia", "somalia", "sahel", "congo", "kenya", "nigeria", "sahara"],
+    "asia-pacific": ["asia", "pacific", "china", "japan", "korea", "taiwan", "india", "philippines", "indonesia", "vietnam", "south china sea"],
+    "latin-america": ["latin america", "brazil", "mexico", "argentina", "venezuela", "colombia", "peru", "chile", "caribbean"],
+}
+
+
 @router.get("/news")
-async def live_news():
-    """Fetch and parse RSS feeds from major news outlets."""
-    all_items: list[dict] = []
+async def live_news(region: str | None = Query(default=None, description="Filter by region")):
+    """Fetch and parse RSS feeds from major news outlets. Optional region filter."""
+    cached = cache.get("news_all", ttl_seconds=120)
+    if cached:
+        all_items = cached.get("data", []) if isinstance(cached, dict) else []
+    else:
+        all_items: list[dict] = []
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0), follow_redirects=True) as client:
+            for feed in RSS_FEEDS:
+                try:
+                    resp = await client.get(feed["url"], headers={"User-Agent": "PIP-Intel/1.0"})
+                    if resp.status_code == 200:
+                        items = _parse_rss_xml(resp.text, feed["name"], feed["category"])
+                        all_items.extend(items)
+                except Exception:
+                    continue
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0), follow_redirects=True) as client:
-        for feed in RSS_FEEDS:
+        # Sort by pubDate descending (newest first), best effort
+        def parse_date(item: dict) -> float:
             try:
-                resp = await client.get(feed["url"], headers={"User-Agent": "PIP-Intel/1.0"})
-                if resp.status_code == 200:
-                    items = _parse_rss_xml(resp.text, feed["name"], feed["category"])
-                    all_items.extend(items)
+                from email.utils import parsedate_to_datetime
+                return parsedate_to_datetime(item.get("pubDate", "")).timestamp()
             except Exception:
-                continue
+                return 0.0
 
-    # Sort by pubDate descending (newest first), best effort
-    def parse_date(item: dict) -> float:
-        try:
-            from email.utils import parsedate_to_datetime
-            return parsedate_to_datetime(item.get("pubDate", "")).timestamp()
-        except Exception:
-            return 0.0
+        all_items.sort(key=parse_date, reverse=True)
+        all_items = all_items[:50]
+        full_result = _ok(all_items, "rss_feeds", source_url="")
+        cache.set("news_all", full_result)
 
-    all_items.sort(key=parse_date, reverse=True)
+    # Apply region filter if specified
+    if region and region in REGION_KEYWORDS:
+        keywords = REGION_KEYWORDS[region]
+        filtered = [
+            item for item in all_items
+            if any(kw in (item.get("title", "") + " " + item.get("description", "")).lower() for kw in keywords)
+        ]
+        return _ok(filtered[:20], "rss_feeds", source_url="")
 
-    return _ok(all_items[:50], "rss_feeds")
+    return _ok(all_items[:50], "rss_feeds", source_url="")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -613,4 +755,58 @@ async def live_events():
     except Exception:
         pass
 
-    return _ok(events, "combined")
+    events.sort(key=lambda event: _parse_timestamp(event.get("timestamp")), reverse=True)
+    return _ok(events[:40], "combined")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Conflict Zone Statistics — Aggregate ACLED data by region
+# ──────────────────────────────────────────────────────────────────────────────
+
+_CONFLICT_ZONE_BOUNDS = {
+    "ukraine": {"lat_range": (44, 53), "lon_range": (22, 41)},
+    "gaza": {"lat_range": (31, 32), "lon_range": (34, 35)},
+    "sudan": {"lat_range": (9, 22), "lon_range": (22, 38)},
+    "yemen": {"lat_range": (12, 17), "lon_range": (42, 53)},
+    "myanmar": {"lat_range": (10, 28), "lon_range": (92, 101)},
+    "sahel": {"lat_range": (10, 20), "lon_range": (-12, 15)},
+    "haiti": {"lat_range": (18, 20), "lon_range": (-75, -71)},
+    "lebanon": {"lat_range": (33, 34.7), "lon_range": (35, 37)},
+}
+
+
+def _top_n(items: list[str], n: int = 3) -> list[str]:
+    """Return top-n most common items."""
+    from collections import Counter
+    return [item for item, _ in Counter(items).most_common(n) if item]
+
+
+@router.get("/conflict-stats")
+async def live_conflict_stats():
+    """Aggregate ACLED data into conflict zone statistics."""
+    conflicts = await live_conflicts()
+    if not conflicts.get("success") or not conflicts.get("data"):
+        return _fail("conflict_stats", "ACLED data unavailable")
+
+    all_events = conflicts["data"]
+    stats: dict[str, Any] = {}
+
+    for zone_id, bounds in _CONFLICT_ZONE_BOUNDS.items():
+        lat_lo, lat_hi = bounds["lat_range"]
+        lon_lo, lon_hi = bounds["lon_range"]
+        zone_events = [
+            e for e in all_events
+            if lat_lo <= e.get("lat", 0) <= lat_hi
+            and lon_lo <= e.get("lon", 0) <= lon_hi
+        ]
+        total_fatalities = sum(e.get("fatalities", 0) for e in zone_events)
+        stats[zone_id] = {
+            "events_7d": len(zone_events),
+            "fatalities_7d": total_fatalities,
+            "top_event_types": _top_n([e.get("type", "") for e in zone_events]),
+            "top_actors": _top_n([e.get("actor1", "") for e in zone_events]),
+            "last_event_date": zone_events[0].get("date", "") if zone_events else "",
+            "trend": "escalating" if len(zone_events) > 20 else "stable" if len(zone_events) > 5 else "low",
+        }
+
+    return _ok(stats, "acled_aggregated", source_url="https://acleddata.com/")

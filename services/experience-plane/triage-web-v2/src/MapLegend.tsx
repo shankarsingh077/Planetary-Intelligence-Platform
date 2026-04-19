@@ -8,8 +8,6 @@
 import { useState, useCallback } from "react";
 import type { LayerVisibility } from "./geoData";
 import {
-  CrosshairIcon,
-  SirenIcon,
   GlobeIcon,
 } from "./Icons";
 
@@ -40,20 +38,6 @@ interface LayerConfig {
 
 const LAYER_CONFIG: LayerConfig[] = [
   {
-    key: "alerts",
-    label: "Intel Alerts",
-    color: "#ff4444",
-    icon: <SirenIcon />,
-    description: "Geo-tagged intelligence alerts",
-  },
-  {
-    key: "hotspots",
-    label: "Intel Hotspots",
-    color: "#ff6b35",
-    icon: <CrosshairIcon />,
-    description: "Key geopolitical monitoring points",
-  },
-  {
     key: "conflictZones",
     label: "Conflict Zones",
     color: "#ff2233",
@@ -66,6 +50,13 @@ const LAYER_CONFIG: LayerConfig[] = [
     color: "#ffd700",
     icon: <span style={svgIconStyle}>◆</span>,
     description: "Maritime chokepoints & canals",
+  },
+  {
+    key: "aviation",
+    label: "OpenSky Aviation",
+    color: "#67d4ff",
+    icon: <span style={svgIconStyle}>✈</span>,
+    description: "Live aircraft feed from OpenSky Network",
   },
   {
     key: "ports",
@@ -102,7 +93,7 @@ const LAYER_CONFIG: LayerConfig[] = [
 export function MapLegend({ layers, onToggle }: MapLegendProps) {
   const [collapsed, setCollapsed] = useState(false);
 
-  const activeCount = Object.values(layers).filter(Boolean).length;
+  const activeCount = LAYER_CONFIG.filter((layer) => layers[layer.key]).length;
 
   const handleToggle = useCallback(
     (key: keyof LayerVisibility) => {
@@ -115,6 +106,11 @@ export function MapLegend({ layers, onToggle }: MapLegendProps) {
     <div
       id="map-legend-panel"
       className="map-legend-panel"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
       style={{
         position: "absolute",
         top: "10px",
@@ -131,6 +127,8 @@ export function MapLegend({ layers, onToggle }: MapLegendProps) {
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         fontFamily: "'Inter', 'SF Pro', system-ui, sans-serif",
         boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+        pointerEvents: "auto",
+        touchAction: "manipulation",
       }}
     >
       {/* Header */}
@@ -224,6 +222,10 @@ export function MapLegend({ layers, onToggle }: MapLegendProps) {
           {LAYER_CONFIG.map((layer) => (
             <label
               key={layer.key}
+              onClick={(e) => {
+                e.preventDefault();
+                handleToggle(layer.key);
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -248,6 +250,7 @@ export function MapLegend({ layers, onToggle }: MapLegendProps) {
               <div
                 onClick={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   handleToggle(layer.key);
                 }}
                 style={{

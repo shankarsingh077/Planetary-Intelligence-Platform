@@ -237,7 +237,7 @@ export const SEED_ALERTS: Alert[] = [
 /* ─── Seed Brief ──────────────────────────────────────────────────────── */
 
 export const SEED_BRIEF = {
-  generatedAt: new Date().toISOString(),
+  generatedAt: "2026-03-29T08:00:00Z",
   changed: [
     "Black Sea naval buildup reaching critical threshold — blockade formation indicators elevated",
     "Amazon fire season intensifying beyond seasonal norms — 312 active hotspots detected",
@@ -450,6 +450,7 @@ export interface FeedItem {
   timestamp: string;
   severity: "low" | "medium" | "high" | "critical";
   location?: string;
+  link?: string;
 }
 
 export const SEED_FEED_EVENTS: FeedItem[] = [
@@ -458,7 +459,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "Black Sea naval buildup: 14 warships repositioned, potential blockade formation detected via AIS satellite tracking",
     source: "AIS Maritime Intel",
     category: "maritime",
-    timestamp: new Date(Date.now() - 120000).toISOString(),
+    timestamp: "2026-03-29T06:30:00Z",
     severity: "critical",
     location: "Black Sea",
   },
@@ -467,7 +468,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "Brent crude +3.8% in 8h window as Hormuz transit delays compound SPR drawdown — WTI spread widening",
     source: "Finnhub Markets",
     category: "economic",
-    timestamp: new Date(Date.now() - 300000).toISOString(),
+    timestamp: "2026-03-29T06:25:00Z",
     severity: "high",
     location: "Global Energy Markets",
   },
@@ -476,7 +477,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "312 active fire hotspots detected across Amazon Basin — carbon emissions 3.2x above seasonal baseline",
     source: "NASA FIRMS",
     category: "climate",
-    timestamp: new Date(Date.now() - 480000).toISOString(),
+    timestamp: "2026-03-29T06:20:00Z",
     severity: "high",
     location: "Amazon Basin, Brazil",
   },
@@ -485,7 +486,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "23 military sorties over Baltic in 6h — electronic warfare jamming confirmed on 3 frequency bands",
     source: "OpenSky Network",
     category: "aviation",
-    timestamp: new Date(Date.now() - 600000).toISOString(),
+    timestamp: "2026-03-29T06:15:00Z",
     severity: "critical",
     location: "Baltic Region",
   },
@@ -494,7 +495,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "10Y-2Y Treasury yield curve inversion deepens to -42bps — steepest since 2007, recession model at 67%",
     source: "FRED Economic Data",
     category: "economic",
-    timestamp: new Date(Date.now() - 900000).toISOString(),
+    timestamp: "2026-03-29T06:10:00Z",
     severity: "medium",
     location: "United States",
   },
@@ -503,7 +504,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "47 conflict events recorded across Sahel corridor in 72h — coordinated infrastructure targeting pattern identified",
     source: "ACLED Conflict Data",
     category: "conflict",
-    timestamp: new Date(Date.now() - 1200000).toISOString(),
+    timestamp: "2026-03-29T06:05:00Z",
     severity: "critical",
     location: "Sahel Region, West Africa",
   },
@@ -512,7 +513,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "SPR drawdown of 8.2M barrels exceeds forecast by 3.1M — commercial crude inventories decline for 5th consecutive week",
     source: "EIA Energy Data",
     category: "energy",
-    timestamp: new Date(Date.now() - 1500000).toISOString(),
+    timestamp: "2026-03-29T06:00:00Z",
     severity: "medium",
     location: "United States",
   },
@@ -521,7 +522,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "42 fishing militia vessels in coordinated formation near Scarborough Shoal — 67% operating with AIS disabled",
     source: "SAR Maritime Intel",
     category: "maritime",
-    timestamp: new Date(Date.now() - 1800000).toISOString(),
+    timestamp: "2026-03-29T05:55:00Z",
     severity: "high",
     location: "South China Sea",
   },
@@ -530,7 +531,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "Coordinated DDoS campaign hits 6 European financial institutions — 340Gbps peak, APT28 infrastructure overlap detected",
     source: "CERT-EU Cyber",
     category: "cyber",
-    timestamp: new Date(Date.now() - 2100000).toISOString(),
+    timestamp: "2026-03-29T05:50:00Z",
     severity: "medium",
     location: "Brussels, Belgium",
   },
@@ -539,7 +540,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "India power grid demand hits record 243 GW — coal stockpiles critically low at 14 thermal plants, brownouts possible",
     source: "CEA Grid Monitor",
     category: "energy",
-    timestamp: new Date(Date.now() - 2400000).toISOString(),
+    timestamp: "2026-03-29T05:45:00Z",
     severity: "medium",
     location: "Northern India",
   },
@@ -548,7 +549,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "Strait of Hormuz vessel transit time +34% with diversionary routing — insurance queries surged 156% in 48h",
     source: "AIS Maritime Intel",
     category: "maritime",
-    timestamp: new Date(Date.now() - 2700000).toISOString(),
+    timestamp: "2026-03-29T05:40:00Z",
     severity: "high",
     location: "Strait of Hormuz",
   },
@@ -557,7 +558,7 @@ export const SEED_FEED_EVENTS: FeedItem[] = [
     title: "GDELT global instability index reaches 94th percentile — cross-domain signal convergence detected across 4 regions",
     source: "GDELT Analysis",
     category: "political",
-    timestamp: new Date(Date.now() - 3000000).toISOString(),
+    timestamp: "2026-03-29T05:35:00Z",
     severity: "medium",
     location: "Global",
   },

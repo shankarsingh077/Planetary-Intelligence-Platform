@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field
 from .auth import build_auth_context
 from .events_source import build_event_source
 from .live_routes import router as live_router
+from .ai_routes import router as ai_router
+from .cascade_routes import router as cascade_router
 from .policy import AuthContext, authorize
 from .store import AssignmentStore
 
@@ -32,6 +34,8 @@ app = FastAPI(title="Planetary Intelligence Triage API", version="0.1.0")
 ASSETS_DIR = WEB_DIR / "assets" if (WEB_DIR / "assets").exists() else WEB_DIR
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 app.include_router(live_router)
+app.include_router(ai_router)
+app.include_router(cascade_router)
 
 
 class ScopeModel(BaseModel):
@@ -57,8 +61,21 @@ def ui_index() -> FileResponse:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict[str, Any]:
+    from .cache import cache as response_cache
+    return {
+        "status": "ok",
+        "data_sources": {
+            "nasa_firms": {"configured": bool(os.getenv("NASA_FIRMS_API_KEY")), "last_success": response_cache.last_success("fires")},
+            "acled": {"configured": bool(os.getenv("ACLED_EMAIL")), "last_success": response_cache.last_success("conflicts")},
+            "finnhub": {"configured": bool(os.getenv("FINNHUB_API_KEY")), "last_success": response_cache.last_success("markets")},
+            "fred": {"configured": bool(os.getenv("FRED_API_KEY")), "last_success": response_cache.last_success("economic")},
+            "eia": {"configured": bool(os.getenv("EIA_API_KEY")), "last_success": response_cache.last_success("energy")},
+            "rss_feeds": {"configured": True, "last_success": response_cache.last_success("news_all")},
+            "gemini_ai": {"configured": bool(os.getenv("GEMINI_API_KEY"))},
+        },
+        "cache": response_cache.stats(),
+    }
 
 
 @app.get("/v1/meta")

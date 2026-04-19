@@ -56,6 +56,15 @@ export interface ConflictZone {
   location?: string;
   description?: string;
   keyDevelopments?: string[];
+  isScenario?: boolean;
+  dynamicStats?: {
+    eventsLast7d: number;
+    fatalitiesLast7d: number;
+    lastEventDate: string;
+    trend: 'escalating' | 'stable' | 'low';
+    source: string;
+    updatedAt: string;
+  };
 }
 
 export interface IntelHotspot {
@@ -255,13 +264,75 @@ export const CONFLICT_ZONES: ConflictZone[] = [
     startDate: 'Oct 8, 2023', location: 'Southern Lebanon / Northern Israel',
     description: 'Cross-border artillery and rocket fire. Targeted assassinations.',
   },
+  // ──────────────────────────────────────────────────────────
+  // ⚠️ SCENARIO / WARGAME ZONES — These are NOT real events.
+  // They are analytical scenarios for planning and assessment.
+  // ──────────────────────────────────────────────────────────
   {
-    id: 'pak_afghan', name: 'Pakistan–Afghanistan Border',
-    coords: [[72.5,35.7],[69.4,31.7],[66.0,29.3],[64.9,30.3],[71.0,36.6],[72.5,35.7]],
-    center: [69, 31.8], intensity: 'medium',
-    parties: ['Pakistan Military', 'TTP', 'Afghan Taliban'],
-    startDate: 'Feb 21, 2026', location: 'Pak-Afghan border',
-    description: 'Cross-border strikes on TTP sanctuaries. Border closures and diplomatic friction.',
+    id: 'scenario_iran', name: '⚠️ SCENARIO: Iran Escalation',
+    coords: [[44,39.8],[48.5,39.5],[54,37.5],[61.2,35.2],[63.3,34],[63.3,29.5],[60,25.5],[54.5,25.5],[48.5,29.5],[44.4,35.2],[44,39.8]],
+    center: [53, 32], intensity: 'medium',
+    parties: ['United States', 'Israel', 'Iran', 'IRGC'],
+    startDate: 'SCENARIO', location: 'Iran (hypothetical)',
+    description: '⚠️ PLANNING SCENARIO: Hypothetical US-Israeli campaign against Iranian nuclear and military infrastructure. Models escalation pathways and regional cascading effects.',
+    isScenario: true,
+  },
+  {
+    id: 'scenario_hormuz', name: '⚠️ SCENARIO: Hormuz Closure',
+    coords: [[54.5,27.5],[57,27.5],[57,25.5],[54.5,25.5],[54.5,27.5]],
+    center: [56.5, 26.2], intensity: 'medium',
+    parties: ['Iran (IRGC Navy)', 'US Navy (5th Fleet)', 'Coalition forces'],
+    startDate: 'SCENARIO', location: 'Strait of Hormuz (hypothetical)',
+    description: '⚠️ PLANNING SCENARIO: Hypothetical Iranian attempt to close Strait of Hormuz in response to military strikes. Models energy market disruption and naval response options.',
+    isScenario: true,
+  },
+  {
+    id: 'scenario_nato_article5', name: '⚠️ SCENARIO: NATO Article 5',
+    coords: [[20,60],[30,60],[30,55],[20,55],[20,60]],
+    center: [25, 57.5], intensity: 'medium',
+    parties: ['Russia', 'NATO', 'Baltic States'],
+    startDate: 'SCENARIO', location: 'Baltic Region (hypothetical)',
+    description: '⚠️ PLANNING SCENARIO: Hypothetical Russian incursion into Baltic state airspace triggering Article 5 deliberations. Models NATO response timelines and force positioning.',
+    isScenario: true,
+  },
+  {
+    id: 'scenario_scs_blockade', name: '⚠️ SCENARIO: South China Sea Blockade',
+    coords: [[108,22],[120,22],[120,8],[108,8],[108,22]],
+    center: [115, 14], intensity: 'medium',
+    parties: ['China (PLA Navy)', 'Philippines', 'US Indo-Pacific Command'],
+    startDate: 'SCENARIO', location: 'South China Sea (hypothetical)',
+    description: '⚠️ PLANNING SCENARIO: Hypothetical Chinese maritime exclusion zone around Spratly Islands. Models freedom of navigation responses and trade route disruption.',
+    isScenario: true,
+  },
+  {
+    id: 'scenario_horn_africa', name: '⚠️ SCENARIO: Horn of Africa Famine',
+    coords: [[40,12],[50,12],[50,2],[40,2],[40,12]],
+    center: [45, 7], intensity: 'medium',
+    parties: ['Al-Shabaab', 'Ethiopian forces', 'AU Mission', 'WFP'],
+    startDate: 'SCENARIO', location: 'Horn of Africa (hypothetical)',
+    description: '⚠️ PLANNING SCENARIO: Cascading food security crisis driven by drought + conflict convergence. Models humanitarian corridor requirements and UN response capacity.',
+    isScenario: true,
+  },
+
+  {
+    id: 'haiti', name: 'Haiti Gang Violence',
+    coords: [[-74.5,20],[-71.5,20],[-71.5,18],[-74.5,18],[-74.5,20]],
+    center: [-72.3, 18.5], intensity: 'high',
+    parties: ['Haitian gangs', 'Kenya-led Mission', 'Haitian police'],
+    casualties: 'Thousands killed', displaced: '700k+ displaced',
+    startDate: 'Feb 29, 2024', location: 'Port-au-Prince and surroundings',
+    description: 'Gang coalitions control 80% of Port-au-Prince. State collapse. Kenya-led multinational force deployed.',
+    keyDevelopments: ['Gangs control 80% of capital', 'Kenya mission deployed', 'PM Ariel Henry ousted', 'Prison breaks', 'Airport seizures'],
+  },
+  {
+    id: 'sahel_insurgency', name: 'Sahel Insurgency',
+    coords: [[-12,28],[15,28],[15,10],[-12,10],[-12,28]],
+    center: [0, 15], intensity: 'high',
+    parties: ['Junta coalitions', 'Islamist groups (JNIM, ISGS)', 'Wagner/Africa Corps', 'France (withdrawn)'],
+    casualties: '10,000+ killed yearly', displaced: '3M+ refugees',
+    startDate: 'Jan 1, 2012', location: 'Mali, Burkina Faso, Niger',
+    description: 'Multi-state Islamist insurgency. Four military coups since 2020. French forces expelled, replaced by Russian Wagner Group.',
+    keyDevelopments: ['Mali, Niger, BF form AES alliance', 'Wagner expansion', 'France withdraws', 'ECOWAS sanctions', 'Humanitarian crisis'],
   },
 ];
 
@@ -288,8 +359,16 @@ export const INTEL_HOTSPOTS: IntelHotspot[] = [
   { id: 'riyadh', name: 'Riyadh', subtext: 'Saudi GIP/MBS', lat: 24.7, lon: 46.7, description: 'OPEC+ decisions. Regional influence.' },
   { id: 'ankara', name: 'Ankara', subtext: 'Turkey/MIT', lat: 39.9, lon: 32.9, description: 'NATO member. Kurdish conflict. Syria/Libya ops.' },
   { id: 'cairo', name: 'Cairo', subtext: 'Egypt/GIS', lat: 30.0, lon: 31.2, description: 'Gaza border. Suez Canal security.' },
-  { id: 'mexico', name: 'Mexico', subtext: 'Cartel Violence', lat: 23.6, lon: -102.5, description: 'Cartel warfare. Fentanyl trafficking.', escalationScore: 4, escalationTrend: 'escalating' },
-  { id: 'caracas', name: 'Caracas', subtext: 'Venezuela Crisis', lat: 10.5, lon: -66.9, description: 'Political crisis. Economic sanctions.' },
+  { id: 'mexico', name: 'Mexico', subtext: 'Cartel Violence', lat: 23.6, lon: -102.5, description: 'Cartel warfare. Fentanyl trafficking.', escalationScore: 4, escalationTrend: 'escalating', whyItMatters: 'Cartel violence at US border; fentanyl crisis' },
+  { id: 'caracas', name: 'Caracas', subtext: 'Venezuela Crisis', lat: 10.5, lon: -66.9, description: 'Political crisis. Economic sanctions.', escalationScore: 3, whyItMatters: 'Oil reserves; refugee crisis; Russia/China ally' },
+  { id: 'haiti', name: 'Port-au-Prince', subtext: 'Gang Collapse', lat: 18.54, lon: -72.34, description: 'Gangs control 80% of capital. State collapse.', escalationScore: 4, escalationTrend: 'stable', whyItMatters: 'Humanitarian crisis at US doorstep' },
+  { id: 'hormuz', name: 'Strait of Hormuz', subtext: 'Oil Chokepoint', lat: 26.5, lon: 56.5, description: 'IRGC Navy operations. 20-30% of global oil transits.', escalationScore: 5, escalationTrend: 'escalating', whyItMatters: 'World\'s most critical oil chokepoint' },
+  { id: 'suez_intel', name: 'Suez Canal', subtext: 'Trade Chokepoint', lat: 30.5, lon: 32.3, description: '12% of global trade. Houthi attacks rerouting ships.', escalationScore: 3, escalationTrend: 'stable', whyItMatters: '12% of global trade; Red Sea attacks' },
+  { id: 'khartoum', name: 'Khartoum', subtext: 'Sudan War', lat: 15.5, lon: 32.5, description: 'SAF vs RSF civil war. City destroyed.', escalationScore: 5, escalationTrend: 'escalating', whyItMatters: 'World\'s largest displacement crisis' },
+  { id: 'naypyidaw', name: 'Naypyidaw', subtext: 'Myanmar Junta', lat: 19.76, lon: 96.07, description: 'Junta losing territory to resistance.', escalationScore: 4, escalationTrend: 'escalating', whyItMatters: 'Civil war; China\'s pipeline; refugee crisis' },
+  { id: 'new_delhi', name: 'New Delhi', subtext: 'India RAW/MOD', lat: 28.61, lon: 77.21, description: 'India intelligence and defense HQ.', escalationScore: 2, whyItMatters: 'World\'s largest democracy; nuclear power' },
+  { id: 'islamabad', name: 'Islamabad', subtext: 'Pakistan ISI', lat: 33.68, lon: 73.04, description: 'Pakistan intelligence and military HQ.', escalationScore: 3, whyItMatters: 'Nuclear-armed; TTP insurgency; Afghan border' },
+  { id: 'shanghai', name: 'Shanghai', subtext: 'Finance/Trade', lat: 31.23, lon: 121.47, description: 'China\'s financial center. World\'s busiest port.', escalationScore: 2, whyItMatters: 'Global supply chain hub' },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -444,6 +523,7 @@ export interface LayerVisibility {
   conflictZones: boolean;
   waterways: boolean;
   militaryBases: boolean;
+  aviation: boolean;
   hotspots: boolean;
   alerts: boolean;
 }
@@ -452,9 +532,10 @@ export const DEFAULT_LAYERS: LayerVisibility = {
   ports: false,
   pipelines: false,
   tradeRoutes: false,
-  conflictZones: true,
+  conflictZones: false,
   waterways: true,
   militaryBases: false,
-  hotspots: true,
-  alerts: true,
+  aviation: false,
+  hotspots: false,
+  alerts: false,
 };

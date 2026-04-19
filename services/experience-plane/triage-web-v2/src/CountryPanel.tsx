@@ -3,7 +3,7 @@
  * Uses SVG icons. Uses differentiated seed data per country.
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import type { Alert } from "./types";
 import { COUNTRY_INTEL, getDefaultCountryIntel } from "./seedData";
 import { BrainIcon, ChartIcon, RadioIcon, SirenIcon } from "./Icons";
@@ -52,31 +52,29 @@ const TREND_COLOR: Record<string, string> = {
 
 export function CountryPanel({ country, alerts, onClose }: CountryPanelProps) {
   const [brief, setBrief] = useState<CountryBrief | null>(null);
-  const [loading, setLoading] = useState(false);
+  const relatedAlerts = useMemo(() => {
+    if (!country) return [];
+    return alerts
+      .filter((a) => {
+        const text = `${a.snapshot || ""} ${a.forecast || ""}`.toLowerCase();
+        return text.includes(country.name.toLowerCase()) || text.includes(country.code.toLowerCase());
+      })
+      .slice(0, 5);
+  }, [alerts, country]);
 
   const loadBrief = useCallback(() => {
     if (!country) return;
-    setLoading(true);
-    setTimeout(() => {
-      // Use differentiated seed data per country
-      const intel = COUNTRY_INTEL[country.code] || getDefaultCountryIntel(country.name);
+    // Load seed data synchronously — no fake loading delay
+    const intel = COUNTRY_INTEL[country.code] || getDefaultCountryIntel(country.name);
 
-      // Find related alerts
-      const related = alerts.filter((a) => {
-        const text = `${a.snapshot || ""} ${a.forecast || ""}`.toLowerCase();
-        return text.includes(country.name.toLowerCase()) || text.includes(country.code.toLowerCase());
-      });
-
-      setBrief({
-        riskLevel: intel.riskLevel,
-        summary: intel.summary,
-        indicators: intel.indicators,
-        relatedAlerts: related.slice(0, 5),
-        dataSources: intel.dataSources,
-      });
-      setLoading(false);
-    }, 350);
-  }, [country, alerts]);
+    setBrief({
+      riskLevel: intel.riskLevel,
+      summary: intel.summary,
+      indicators: intel.indicators,
+      relatedAlerts: [],
+      dataSources: intel.dataSources,
+    });
+  }, [country]);
 
   useEffect(() => {
     if (country) {
@@ -117,6 +115,7 @@ export function CountryPanel({ country, alerts, onClose }: CountryPanelProps) {
                   <div className="country-header-text">
                     <h2 className="country-name">{country.name}</h2>
                     <span className="country-code">{country.code}</span>
+                    <span className="country-static-badge">STATIC PROFILE</span>
                   </div>
                   {brief && (
                     <span
@@ -128,14 +127,7 @@ export function CountryPanel({ country, alerts, onClose }: CountryPanelProps) {
                   )}
                 </div>
 
-                {loading && (
-                  <div className="country-loading">
-                    <div className="country-loading-bar" />
-                    <p>Generating intelligence brief...</p>
-                  </div>
-                )}
-
-                {brief && !loading && (
+                {brief && (
                   <>
                     <section className="country-section">
                       <h3 className="country-section-title">
@@ -165,14 +157,14 @@ export function CountryPanel({ country, alerts, onClose }: CountryPanelProps) {
                       </div>
                     </section>
 
-                    {brief.relatedAlerts.length > 0 && (
+                    {relatedAlerts.length > 0 && (
                       <section className="country-section">
                         <h3 className="country-section-title">
                           <SirenIcon size={15} />
-                          Related Alerts ({brief.relatedAlerts.length})
+                          Related Alerts ({relatedAlerts.length})
                         </h3>
                         <div className="country-alerts-list">
-                          {brief.relatedAlerts.map((alert) => (
+                          {relatedAlerts.map((alert) => (
                             <div key={alert.alert_id} className={`country-alert-item sev-${alert.severity || "low"}`}>
                               <div className="country-alert-sev">{(alert.severity || "LOW").toUpperCase()}</div>
                               <div className="country-alert-text">{alert.snapshot || "No snapshot"}</div>

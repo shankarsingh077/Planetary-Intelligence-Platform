@@ -8,6 +8,26 @@ export type Alert = {
   contradictions?: string[];
   forecast?: string;
   recommended_actions?: string[];
+  source?: string;
+  category?: string;
+  link?: string;
+  timestamp?: string;
+  source_details?: {
+    officialLabel?: string;
+    officialUrl?: string;
+    articleLabel?: string;
+    articleUrl?: string;
+  };
+  credibility?: {
+    label: string;
+    score: number;
+    note: string;
+    color: string;
+  };
+  confidence_details?: {
+    summary: string;
+    factors: string[];
+  };
   uncertainty?: Record<string, unknown>;
   location?: {
     geo?: {
