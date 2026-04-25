@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pip-web-145930903164.asia-south1.run.app">
+  <a href="https://pip-web-446183096850.asia-south1.run.app">
     <img src="https://img.shields.io/badge/🔴_LIVE-Cloud_Run-00C853?style=for-the-badge&logo=google-cloud&logoColor=white" alt="Live Demo"/>
   </a>
   <img src="https://img.shields.io/badge/Status-Operational-44ff88?style=for-the-badge" alt="Status"/>
@@ -23,7 +23,7 @@
 
 ## 📡 Live Dashboard Preview
 
-> **[👉 Access the live platform →](https://pip-web-145930903164.asia-south1.run.app)**
+> **[👉 Access the live platform →](https://pip-web-446183096850.asia-south1.run.app)**
 
 <p align="center">
   <img src="docs/assets/dashboard-preview.png" alt="PIP Dashboard — Global Situation Console" width="900"/>
@@ -227,7 +227,7 @@ gcloud run deploy pip-web \
 ### Health Check
 
 ```bash
-curl https://pip-web-145930903164.asia-south1.run.app/health
+curl https://pip-web-446183096850.asia-south1.run.app/health
 # → {"status":"ok"}
 ```
 
