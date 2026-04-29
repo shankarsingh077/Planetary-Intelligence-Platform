@@ -31,6 +31,7 @@ jobs:
           python -m pip install -e services/intelligence-plane/entity-resolver/
           python -m pip install -e services/intelligence-plane/fusion-service/
           python -m pip install -e services/intelligence-plane/confidence-service/
+          python -m pip install networkx redis google-cloud-storage
 
       - name: Run schema compatibility check
         run: |
