@@ -50,6 +50,7 @@ import {
   SirenIcon,
   SignalIcon,
   ClipboardIcon,
+  GithubIcon,
   SearchIcon,
   FileTextIcon,
   RefreshIcon,
@@ -367,6 +368,13 @@ export function App() {
     return {};
   });
   const [settingsPanelId, setSettingsPanelId] = useState<string | null>(null);
+
+  // Footer / header badge popup state
+  const alertsChipRef = useRef<HTMLSpanElement | null>(null);
+  const eventsChipRef = useRef<HTMLSpanElement | null>(null);
+  const auditChipRef = useRef<HTMLSpanElement | null>(null);
+  const [badgePopupType, setBadgePopupType] = useState<string | null>(null);
+  const [badgePopupStyle, setBadgePopupStyle] = useState<React.CSSProperties>({});
 
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
@@ -1600,6 +1608,22 @@ export function App() {
   const statusLabel = dataMode === "live" ? "LIVE" : dataMode === "mixed" ? "MIXED" : "FALLBACK";
   const statusDotClass = dataMode === "live" ? "live" : dataMode === "mixed" ? "paused" : "error";
 
+  // Badge popup handler
+  const handleBadgeClick = (type: 'alerts' | 'events' | 'audit', ref: React.RefObject<HTMLElement> | null) => {
+    if (!ref || !ref.current) {
+      setBadgePopupType(type);
+      setBadgePopupStyle({});
+      return;
+    }
+    const rect = ref.current.getBoundingClientRect();
+    const top = rect.bottom + 8 + window.scrollY;
+    const left = rect.left + window.scrollX;
+    setBadgePopupType(type);
+    setBadgePopupStyle({ position: 'absolute', top: `${top}px`, left: `${left}px`, zIndex: 9999 });
+  };
+
+  const closeBadgePopup = () => setBadgePopupType(null);
+
   return (
     <div id="app">
       {/* Panel Selector Modal */}
@@ -1634,9 +1658,15 @@ export function App() {
         </div>
         <div className="header-right">
           <div className="stat-chips">
-            <span className="chip"><SirenIcon size={12} /> ALERTS {alerts.length}</span>
-            <span className="chip"><SignalIcon size={12} /> EVENTS {eventsCount}</span>
-            <span className="chip"><ClipboardIcon size={12} /> AUDIT {auditCount ?? "--"}</span>
+            <span ref={alertsChipRef} role="button" tabIndex={0} className="chip" onClick={() => handleBadgeClick('alerts', alertsChipRef)}>
+              <SirenIcon size={12} /> ALERTS {alerts.length}
+            </span>
+            <span ref={eventsChipRef} role="button" tabIndex={0} className="chip" onClick={() => handleBadgeClick('events', eventsChipRef)}>
+              <SignalIcon size={12} /> EVENTS {eventsCount}
+            </span>
+            <span ref={auditChipRef} role="button" tabIndex={0} className="chip" onClick={() => handleBadgeClick('audit', auditChipRef)}>
+              <ClipboardIcon size={12} /> AUDIT {auditCount ?? "--"}
+            </span>
             <span className={`chip chip-${dataMode}`}>{statusLabel} DATA</span>
           </div>
           <button className="refresh-btn" onClick={() => void refreshAll()}>
@@ -1650,6 +1680,9 @@ export function App() {
           >
             ⚙️
           </button>
+          <a className="github-link" href="https://github.com/shankarsingh077/Planetary-Intelligence-Platform" target="_blank" rel="noopener noreferrer" title="View on GitHub">
+            <GithubIcon size={18} />
+          </a>
           <button 
             className="fullscreen-btn" 
             onClick={toggleFullscreen}
@@ -1659,6 +1692,50 @@ export function App() {
           </button>
         </div>
       </header>
+
+      {/* Badge popup (Alerts / Events / Audit) */}
+      {badgePopupType ? (
+        <div className="badge-popup" style={badgePopupStyle} role="dialog" aria-label="Badge details">
+          <div className="badge-popup-header">
+            <strong>{badgePopupType.toUpperCase()}</strong>
+            <button className="badge-popup-close" onClick={closeBadgePopup}>✕</button>
+          </div>
+          <div className="badge-popup-body">
+            {badgePopupType === 'alerts' && (
+              <div>
+                <div style={{marginBottom:8}}>Total alerts: <strong>{alerts.length}</strong></div>
+                <div style={{maxHeight:180, overflowY:'auto'}}>
+                  {alerts.slice(0,8).map((a) => (
+                    <div key={a.alert_id} className="badge-alert-row">
+                      <button className="link-like" onClick={() => { handleAlertSelection(a, { focusMap: true }); closeBadgePopup(); }}>
+                        {a.snapshot || a.alert_id}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {badgePopupType === 'events' && (
+              <div>
+                <div>Total events: <strong>{eventsCount}</strong></div>
+                <div style={{marginTop:8,fontSize:12,color:'#cfc'}}>
+                  Events are sourced from live feeds and the event store. Click Refresh to update.
+                </div>
+              </div>
+            )}
+            {badgePopupType === 'audit' && (
+              <div>
+                <div>Audit assignments: <strong>{auditCount ?? 0}</strong></div>
+                <div style={{marginTop:8}}>
+                  <button className="incoming-alert-btn" onClick={() => { alert('Opening audit panel'); }}>
+                    View Audit Assignments
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {incomingAlert ? (
         <div className="incoming-alert-banner">
