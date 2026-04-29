@@ -1,5 +1,8 @@
 .git
 .venv
+.env
+.env.*
+.logs
 __pycache__
 *.pyc
 *.pyo
@@ -9,3 +12,4 @@ __pycache__
 .mypy_cache
 runtime-output
 node_modules
+services/experience-plane/triage-web-v2/dist

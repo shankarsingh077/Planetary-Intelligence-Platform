@@ -3,9 +3,7 @@
 > vite
 
 
-  VITE v5.4.21  ready in 248 ms
+  VITE v5.4.21  ready in 259 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-11:20:37 AM [vite] hmr update /src/CascadePage.tsx
-11:20:47 AM [vite] hmr update /src/styles.css

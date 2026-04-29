@@ -24,6 +24,7 @@ import httpx
 from fastapi import APIRouter, Query
 
 from .cache import cache
+from .news_balance import build_balanced_news_payload
 
 router = APIRouter(prefix="/v1/live", tags=["live"])
 
@@ -168,8 +169,9 @@ async def live_conflicts():
 
             # Fetch recent events
             resp = await client.get(
-                "https://api.acleddata.com/acled/read",
+                "https://acleddata.com/api/acled/read",
                 params={
+                    "_format": "json",
                     "limit": 200,
                     "fields": "event_id_cnty|event_date|event_type|sub_event_type|actor1|actor2|country|admin1|location|latitude|longitude|fatalities|source",
                 },
@@ -632,6 +634,18 @@ async def live_news(region: str | None = Query(default=None, description="Filter
         return _ok(filtered[:20], "rss_feeds", source_url="")
 
     return _ok(all_items[:50], "rss_feeds", source_url="")
+
+
+@router.get("/news-balanced")
+async def live_news_balanced(region: str | None = Query(default=None, description="Filter by region")):
+    """Return news items plus Ground-News-style comparison cards built from the existing RSS system."""
+    news_result = await live_news(region=region)
+    if not news_result.get("success"):
+        return news_result
+
+    articles = news_result.get("data") or []
+    payload = build_balanced_news_payload(articles, region=region)
+    return _ok(payload, "rss_balance", source_url="")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

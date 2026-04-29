@@ -1188,6 +1188,12 @@ export function App() {
     [mapMode]
   );
 
+  const handleCascadeClose = useCallback(() => {
+    setCascadeAlert(null);
+    window.setTimeout(() => mapRef.current?.invalidateSize(), 80);
+    window.setTimeout(() => mapRef.current?.invalidateSize(), 240);
+  }, []);
+
   /* ─── Panel Management ─────────────────────────────────────────────────── */
 
   const handleTogglePanel = useCallback((panelId: string) => {
@@ -1591,11 +1597,6 @@ export function App() {
 
   /* ─── Render ─────────────────────────────────────────────────────────── */
 
-  // Render cascade page if an alert is selected for cascade analysis
-  if (cascadeAlert) {
-    return <CascadePage alert={cascadeAlert} onClose={() => setCascadeAlert(null)} />;
-  }
-
   const statusLabel = dataMode === "live" ? "LIVE" : dataMode === "mixed" ? "MIXED" : "FALLBACK";
   const statusDotClass = dataMode === "live" ? "live" : dataMode === "mixed" ? "paused" : "error";
 
@@ -1927,6 +1928,10 @@ export function App() {
         alerts={alerts}
         onClose={() => setSelectedCountry(null)}
       />
+
+      {cascadeAlert ? (
+        <CascadePage alert={cascadeAlert} onClose={handleCascadeClose} />
+      ) : null}
     </div>
   );
 }

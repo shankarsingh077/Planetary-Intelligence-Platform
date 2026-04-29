@@ -31,6 +31,7 @@ SECRET_KEYS=(
   UCDP_ACCESS_TOKEN
   NASA_FIRMS_API_KEY
   ABUSEIPDB_API_KEY
+  GEMINI_API_KEY
 )
 
 gcloud config set project "${PROJECT_ID}" >/dev/null

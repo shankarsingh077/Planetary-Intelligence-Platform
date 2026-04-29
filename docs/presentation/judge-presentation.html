@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PIP Judge Presentation</title>
+  <style>
+    :root {
+      --bg: #061018;
+      --panel: rgba(9, 18, 27, 0.82);
+      --panel-strong: rgba(7, 14, 21, 0.94);
+      --line: rgba(103, 212, 255, 0.18);
+      --line-soft: rgba(255, 255, 255, 0.08);
+      --text: #eef7fb;
+      --muted: #9eb4c1;
+      --green: #53ff9c;
+      --cyan: #67d4ff;
+      --amber: #ffc567;
+      --red: #ff7070;
+      --shadow: 0 22px 70px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top, rgba(37, 111, 160, 0.18), transparent 34%),
+        linear-gradient(180deg, #03080c 0%, #071019 100%);
+      color: var(--text);
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    body.notes-visible .speaker-note {
+      display: block;
+    }
+
+    .deck {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .slides {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      transition: transform 320ms ease;
+    }
+
+    .slide {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      padding: 42px 56px 78px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 26px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 22px;
+      border: 1px solid var(--line-soft);
+      border-radius: 28px;
+      pointer-events: none;
+    }
+
+    .slide-header {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .slide-kicker {
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: var(--green);
+      margin-bottom: 10px;
+    }
+
+    .slide-title {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 52px);
+      line-height: 1.02;
+      max-width: 880px;
+    }
+
+    .slide-subtitle {
+      margin: 12px 0 0;
+      max-width: 880px;
+      font-size: clamp(16px, 2vw, 21px);
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .slide-number {
+      color: rgba(255, 255, 255, 0.38);
+      font-size: 14px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding-top: 4px;
+    }
+
+    .hero {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.28;
+      filter: saturate(1.04) brightness(0.88);
+    }
+
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 58% 48%, rgba(83, 255, 156, 0.16), transparent 24%),
+        linear-gradient(120deg, rgba(3, 7, 11, 0.84), rgba(3, 7, 11, 0.52));
+    }
+
+    .slide-grid-2,
+    .slide-grid-3 {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      gap: 22px;
+      align-items: stretch;
+    }
+
+    .slide-grid-2 {
+      grid-template-columns: 1.04fr 0.96fr;
+    }
+
+    .slide-grid-3 {
+      grid-template-columns: 1.2fr 0.9fr 0.9fr;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 22px 24px;
+      backdrop-filter: blur(8px);
+    }
+
+    .panel-strong {
+      background: var(--panel-strong);
+    }
+
+    .panel h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      color: var(--cyan);
+    }
+
+    .panel p {
+      margin: 0;
+      line-height: 1.55;
+      color: var(--text);
+    }
+
+    .impact-list,
+    .value-list,
+    .story-list,
+    .caption-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .impact-list li,
+    .value-list li,
+    .story-list li,
+    .caption-list li {
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line-soft);
+      background: rgba(255, 255, 255, 0.03);
+      line-height: 1.45;
+    }
+
+    .label {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(83, 255, 156, 0.2);
+      background: rgba(83, 255, 156, 0.08);
+      color: var(--green);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .screenshot {
+      width: 100%;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+      display: block;
+      background: #020507;
+    }
+
+    .screenshot-stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .caption {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      padding: 18px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line-soft);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 26px;
+      color: var(--green);
+      margin-bottom: 6px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .quote-card {
+      align-self: start;
+      padding: 24px 26px;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.34);
+      border: 1px solid rgba(103, 212, 255, 0.14);
+      font-size: clamp(20px, 2.4vw, 30px);
+      line-height: 1.35;
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+
+    .quote-card span {
+      color: var(--green);
+    }
+
+    .architecture-note {
+      margin-top: 12px;
+      color: var(--amber);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .two-up {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .callout {
+      border-left: 3px solid var(--green);
+      padding-left: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .speaker-note {
+      display: none;
+      position: relative;
+      z-index: 2;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255, 112, 112, 0.08);
+      border: 1px solid rgba(255, 112, 112, 0.14);
+      color: #ffd2d2;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .footer {
+      position: absolute;
+      right: 28px;
+      bottom: 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      z-index: 4;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(4, 10, 14, 0.74);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .controls {
+      position: absolute;
+      left: 28px;
+      bottom: 20px;
+      display: flex;
+      gap: 10px;
+      z-index: 4;
+    }
+
+    .controls button {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      background: rgba(8, 18, 27, 0.88);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .controls button:hover {
+      background: rgba(12, 27, 40, 0.92);
+    }
+
+    .progress {
+      width: 130px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+      transition: width 320ms ease;
+    }
+
+    @media (max-width: 1100px) {
+      .slide {
+        padding: 32px 36px 90px;
+      }
+
+      .slide-grid-2,
+      .slide-grid-3,
+      .metric-row,
+      .two-up {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      html,
+      body {
+        overflow: visible;
+        background: #041018;
+      }
+
+      .deck {
+        height: auto;
+      }
+
+      .slides {
+        display: block;
+        transform: none !important;
+      }
+
+      .slide {
+        page-break-after: always;
+        min-height: 100vh;
+      }
+
+      .controls,
+      .footer {
+        display: none;
+      }
+
+      .speaker-note {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <div class="slides" id="slides">
+      <section class="slide">
+        <img class="hero" src="./assets/hero-banner.png" alt="Planetary Intelligence Platform hero art" />
+        <div class="hero-overlay"></div>
+        <div class="slide-header">
+          <div>
+            <div class="slide-kicker">Planetary Intelligence Platform</div>
+            <h1 class="slide-title">An intelligence operating system for understanding global risk in real time</h1>
+            <p class="slide-subtitle">
+              This deck is built from actual project visuals in the repository and is designed for a judge-facing
+              5-7 minute presentation.
+            </p>
+          </div>
+          <div class="slide-number">01 / 09</div>
+        </div>
+        <div class="slide-grid-2" style="align-items:end;">
+          <div class="quote-card">
+            "The world does not have a data shortage. It has a <span>decision shortage.</span>"
+          </div>
+          <div class="panel panel-strong">
+            <div class="label">Presentation Goal</div>
+            <p>
+              Show that PIP is not just a dashboard. It is a full signal-to-decision pipeline that ingests fragmented
+              global signals, turns them into explainable intelligence, and models downstream consequences.
+            </p>
+          </div>
+        </div>
+        <div class="speaker-note">
+          Open with the decision shortage line, pause, then say: "We built Planetary Intelligence Platform to close the gap
+          between raw global signals and confident decisions."
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-header">
+          <div>
+            <div class="slide-kicker">Problem</div>
+            <h2 class="slide-title">Critical signals are fragmented across domains, tools, and timelines</h2>
+            <p class="slide-subtitle">
+              Conflict, energy, shipping, aviation, macro, and open-source news all move independently, so analysts spend
+              too much time stitching context together instead of acting on it.
+            </p>
+          </div>
+          <div class="slide-number">02 / 09</div>
+        </div>
+        <div class="slide-grid-2">
+          <div class="panel">
+            <div class="label">What breaks without PIP</div>
+            <ul class="impact-list">
+              <li><strong>Slow context assembly:</strong> teams jump between feeds before they can form a coherent picture.</li>
+              <li><strong>Weak explainability:</strong> many systems show events, but not why they matter or what happens next.</li>
+              <li><strong>Poor consequence modeling:</strong> disruptions at chokepoints rarely get translated into downstream sector effects.</li>
+              <li><strong>Operator overload:</strong> too many raw headlines, not enough structured intelligence.</li>
+            </ul>
+          </div>
+          <div class="panel panel-strong">
+            <div class="label">What PIP changes</div>
+            <ul class="impact-list">
+              <li><strong>Unifies signals</strong> into one common intelligence model.</li>
+              <li><strong>Scores confidence</strong> using corroboration, freshness, and fusion context.</li>
+              <li><strong>Explains outputs</strong> with evidence, forecast, and uncertainty.</li>
+              <li><strong>Projects impact</strong> through a cascade graph of chokepoints, commodities, sectors, and countries.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="speaker-note">
+          Keep this slide human and simple. Judges should leave this slide thinking: "Yes, this solves a real analyst pain."
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-header">
+          <div>
+            <div class="slide-kicker">Product View</div>
+            <h2 class="slide-title">One command surface for monitoring, triage, and intelligence briefing</h2>
+            <p class="slide-subtitle">
+              The main console combines the live global posture map, live intelligence feed, alert inbox, and explainability
+              panel into a single analyst workflow.
+            </p>
+          </div>
+          <div class="slide-number">03 / 09</div>
+        </div>
+        <div class="slide-grid-2">
+          <div class="panel panel-strong">
+            <img class="screenshot" src="./assets/dashboard-full.png" alt="Full dashboard preview" />
+            <div class="caption">
+              Real project screenshot from the repository showing the global posture map, live feed, alert inbox, and alert intelligence panel.
+            </div>
+          </div>
+          <div class="panel">
+            <div class="label">What to point out live</div>
+            <ul class="story-list">
+              <li><strong>Global Posture Map:</strong> real-time surface for alerts, hotspots, conflict zones, ports, waterways, routes, and bases.</li>
+              <li><strong>Live Intelligence Feed:</strong> where heterogeneous upstream signals arrive as operator-readable alerts.</li>
+              <li><strong>Live Alert Inbox:</strong> a triage queue so analysts can pick the most important event quickly.</li>
+              <li><strong>Alert Intelligence:</strong> where the platform explains the event with snapshot, drivers, contradictions, forecast, and confidence.</li>
+            </ul>
+            <div class="callout">
+              Best line for judges: "This is the operational surface of a larger intelligence pipeline, not the pipeline itself."
+            </div>
+          </div>
+        </div>
+        <div class="speaker-note">
+          Spend time here. This is the first moment judges can visualize the product. Walk left to right across the screen.
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-header">
+          <div>
+            <div class="slide-kicker">Experience Plane</div>
+            <h2 class="slide-title">The interface is designed to answer: what changed, why it matters, and what happens next</h2>
+            <p class="slide-subtitle">
+              Instead of making the operator dig through tabs, PIP surfaces the map context, event context, and analyst context in one place.
+            </p>
+          </div>
+          <div class="slide-number">04 / 09</div>
+        </div>
+        <div class="slide-grid-3">
+          <div class="panel panel-strong">
+            <img class="screenshot" src="./assets/dashboard-map-focus.png" alt="Map and strategic overlays" />
+            <div class="caption">Strategic geospatial context: conflict zones, routes, chokepoints, ports, and hotspots.</div>
+          </div>
+          <div class="screenshot-stack">
+            <div class="panel">
+              <img class="screenshot" src="./assets/dashboard-layers-focus.png" alt="Map layers panel" />
+              <div class="caption">Layer control shows that this is a configurable intelligence surface, not a static image.</div>
+            </div>
+            <div class="panel">
+              <img class="screenshot" src="./assets/dashboard-alert-focus.png" alt="Alert inbox and intelligence panel" />
+              <div class="caption">The analyst flow goes from trigger to triage to structured explanation.</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="label">What makes the UI impressive</div>
+            <ul class="caption-list">
+              <li>Real-time map overlays give geographic context to every alert.</li>
+              <li>Operators can move from detection to explanation without leaving the console.</li>
+              <li>The layout supports both rapid scanning and deeper investigation.</li>
+              <li>It feels like a command environment, not a generic admin dashboard.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="speaker-note">
+          Use the words "command environment" and "operator workflow." Those phrases make the interface sound intentional and serious.
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-header">
+          <div>
+            <div class="slide-kicker">How It Works</div>
+            <h2 class="slide-title">PIP is built as a multi-plane intelligence architecture</h2>
+            <p class="slide-subtitle">
+              Data enters through connectors, becomes normalized events, is fused and scored in the intelligence layer,
+              and is finally rendered into analyst workflows in the experience layer.
+            </p>
+          </div>
+          <div class="slide-number">05 / 09</div>
+        </div>
+        <div class="slide-grid-2">
+          <div class="panel panel-strong">
+            <img class="screenshot" src="./assets/architecture.png" alt="Architecture diagram" />
+            <div class="architecture-note">
+              Repo note: this architecture image is an early visual asset. For the current codebase, describe the system as
+              a four-plane architecture: Data, Intelligence, Experience, and Control.
+            </div>
+          </div>
+          <div class="panel">
+            <div class="label">Judge-friendly architecture story</div>
+            <ul class="story-list">
+              <li><strong>Data Plane:</strong> ingests live signals from multiple domains and normalizes them into one canonical event model.</li>
+              <li><strong>Intelligence Plane:</strong> resolves entities, fuses related events, calibrates confidence, and builds briefs.</li>
+              <li><strong>Experience Plane:</strong> exposes the map, feed, alerts, cascade view, and analyst-facing workflows.</li>
+              <li><strong>Control Plane:</strong> handles policy, access control, tenant isolation, and governance.</li>
+            </ul>
+            <div class="callout">
+              Strong line: "Architecturally, this is an end-to-end signal-to-decision system, not just a frontend."
+            </div>
+          </div>
+        </div>
+        <div class="speaker-note">
+          Be explicit that the architecture image is illustrative, while your spoken explanation reflects the current codebase.
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-header">
+          <div>
+            <div class="slide-kicker">Explainability</div>
+            <h2 class="slide-title">The platform produces explainable, confidence-scored intelligence</h2>
+            <p class="slide-subtitle">
+              PIP does not ask users to trust a black box. It shows evidence, uncertainty, and forecast structure around each alert.
+            </p>
+          </div>
+          <div class="slide-number">06 / 09</div>
+        </div>
+        <div class="slide-grid-2">
+          <div class="panel">
+            <div class="label">What judges should hear</div>
+            <ul class="impact-list">
+              <li><strong>Explainable:</strong> every alert is structured with snapshot, drivers, contradictions, forecast, evidence, and uncertainty.</li>
+              <li><strong>Confidence-scored:</strong> confidence is calibrated from base confidence, source reliability, corroboration, fusion size, and freshness.</li>
+              <li><strong>Auditable:</strong> the reasoning path is visible enough for a human analyst to challenge or trust the output.</li>
+            </ul>
+            <div class="two-up" style="margin-top: 16px;">
+              <div class="metric"><strong>Corroboration</strong><span>More confirming sources raise confidence.</span></div>
+              <div class="metric"><strong>Freshness</strong><span>Recent events keep higher confidence than stale ones.</span></div>
+              <div class="metric"><strong>Fusion</strong><span>Larger event clusters contribute additional confidence.</span></div>
+              <div class="metric"><strong>Uncertainty</strong><span>Each output still exposes what remains unclear.</span></div>
+            </div>
+          </div>
+          <div class="panel panel-strong">
+            <img class="screenshot" src="./assets/dashboard-alert-focus.png" alt="Alert intelligence crop" />
+            <div class="caption">
+              Use this visual while saying: "The system shows not only the alert, but the reasons behind the alert."
+            </div>
+          </div>
+        </div>
+        <div class="speaker-note">
+          Say this carefully: "Our confidence score is calibrated, not decorative." That line usually lands well with technical judges.
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-header">
+          <div>
+            <div class="slide-kicker">Differentiator</div>
+            <h2 class="slide-title">The cascade engine moves PIP from monitoring to consequence modeling</h2>
+            <p class="slide-subtitle">
+              When a disruption maps to strategic nodes like chokepoints, commodities, or supply-chain actors, PIP projects how pressure can spread into sectors, countries, prices, and trade.
+            </p>
+          </div>
+          <div class="slide-number">07 / 09</div>
+        </div>
+        <div class="slide-grid-2">
+          <div class="panel panel-strong">
+            <img class="screenshot" src="./assets/dashboard-map-focus.png" alt="Map focus for cascade context" />
+            <div class="caption">
+              Present this alongside a live example like Hormuz, Red Sea, or Taiwan Strait and explain how the initial trigger becomes downstream impacts.
+            </div>
+          </div>
+          <div class="panel">
+            <div class="label">How to explain cascade simply</div>
+            <ul class="impact-list">
+              <li><strong>Step 1:</strong> map the alert into graph-backed nodes like Strait of Hormuz, Crude Oil, or Semiconductors.</li>
+              <li><strong>Step 2:</strong> propagate risk through weighted dependencies using controlled decay.</li>
+              <li><strong>Step 3:</strong> convert graph hits into useful operator language such as higher freight, refinery stress, importer exposure, or food-price pressure.</li>
+            </ul>
+            <div class="label" style="margin-top:16px;">Best spoken example</div>
+            <p>
+              "If the Strait of Hormuz closes, PIP does not stop at flagging the headline. It projects likely early effects on crude,
+              LNG, war-risk insurance, and energy supply chains, then shows who is exposed next, such as India, Japan, South Korea, and China."
+            </p>
+          </div>
+        </div>
+        <div class="speaker-note">
+          This is the slide where judges should think: "This team is doing something deeper than event visualization."
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-header">
+          <div>
+            <div class="slide-kicker">Why It Is Credible</div>
+            <h2 class="slide-title">The system is opinionated about trust, guardrails, and resilience</h2>
+            <p class="slide-subtitle">
+              PIP is designed to degrade gracefully, separate evidence-backed logic from weak inference, and remain useful when upstream feeds are incomplete.
+            </p>
+          </div>
+          <div class="slide-number">08 / 09</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric"><strong>Fail-soft</strong><span>The experience layer supports live, mixed, and fallback modes instead of going blank.</span></div>
+          <div class="metric"><strong>Evidence-gated</strong><span>Cascade only runs on graph-backed disruption signals, not vague headline guessing.</span></div>
+          <div class="metric"><strong>Governed</strong><span>Role-based access and tenant isolation make the platform closer to real operational software.</span></div>
+          <div class="metric"><strong>Explainable</strong><span>Every important output is paired with reasoning, not just a score.</span></div>
+        </div>
+        <div class="slide-grid-2">
+          <div class="panel">
+            <div class="label">What to say</div>
+            <p>
+              "We intentionally optimized first for transparency and operator trust. Even where the system uses heuristic priors,
+              those choices are visible and calibratable rather than hidden inside a black box."
+            </p>
+          </div>
+          <div class="panel panel-strong">
+            <div class="label">Strong closing angle</div>
+            <p>
+              PIP is valuable because it helps humans move from raw information to structured judgment faster, with more context
+              and better downstream awareness.
+            </p>
+          </div>
+        </div>
+        <div class="speaker-note">
+          Use this slide to demonstrate maturity: "We are honest about heuristics, deliberate about guardrails, and focused on decision usefulness."
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="slide-header">
+          <div>
+            <div class="slide-kicker">Close</div>
+            <h2 class="slide-title">Most platforms show what is happening. PIP helps you understand what it means, what it affects, and what to do next.</h2>
+            <p class="slide-subtitle">
+              End by positioning the project as an intelligence operating system rather than a map, a feed, or a dashboard.
+            </p>
+          </div>
+          <div class="slide-number">09 / 09</div>
+        </div>
+        <div class="slide-grid-2">
+          <div class="panel panel-strong">
+            <div class="label">30-second close</div>
+            <p>
+              Planetary Intelligence Platform unifies fragmented global signals into explainable, confidence-scored intelligence
+              and projects downstream consequences through cascade modeling. The outcome is faster situational awareness and better decision support.
+            </p>
+          </div>
+          <div class="panel">
+            <div class="label">If judges ask for the core innovation</div>
+            <ul class="value-list">
+              <li>Multi-source signal fusion</li>
+              <li>Explainable alert intelligence</li>
+              <li>Confidence calibration</li>
+              <li>Graph-based second-order impact modeling</li>
+            </ul>
+          </div>
+        </div>
+        <div class="speaker-note">
+          End with confidence and stop. Do not over-explain after the closing line. Let the judges come to you with questions.
+        </div>
+      </section>
+    </div>
+
+    <div class="controls">
+      <button type="button" id="prevBtn">Previous</button>
+      <button type="button" id="nextBtn">Next</button>
+      <button type="button" id="notesBtn">Notes</button>
+      <button type="button" id="fullBtn">Full Screen</button>
+    </div>
+
+    <div class="footer">
+      <span id="deckCount">Slide 1 of 9</span>
+      <div class="progress"><span id="progressBar"></span></div>
+      <span>Keys: Left/Right, Space, F</span>
+    </div>
+  </div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const track = document.getElementById("slides");
+    const deckCount = document.getElementById("deckCount");
+    const progressBar = document.getElementById("progressBar");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const notesBtn = document.getElementById("notesBtn");
+    const fullBtn = document.getElementById("fullBtn");
+    let index = 0;
+
+    function render() {
+      track.style.transform = `translateX(-${index * 100}%)`;
+      deckCount.textContent = `Slide ${index + 1} of ${slides.length}`;
+      progressBar.style.width = `${((index + 1) / slides.length) * 100}%`;
+      prevBtn.disabled = index === 0;
+      nextBtn.disabled = index === slides.length - 1;
+    }
+
+    function next() {
+      index = Math.min(index + 1, slides.length - 1);
+      render();
+    }
+
+    function prev() {
+      index = Math.max(index - 1, 0);
+      render();
+    }
+
+    prevBtn.addEventListener("click", prev);
+    nextBtn.addEventListener("click", next);
+
+    notesBtn.addEventListener("click", () => {
+      document.body.classList.toggle("notes-visible");
+    });
+
+    fullBtn.addEventListener("click", async () => {
+      const root = document.documentElement;
+      if (!document.fullscreenElement) {
+        await root.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (["ArrowRight", "PageDown", " "].includes(event.key)) {
+        event.preventDefault();
+        next();
+      } else if (["ArrowLeft", "PageUp"].includes(event.key)) {
+        event.preventDefault();
+        prev();
+      } else if (event.key.toLowerCase() === "f") {
+        fullBtn.click();
+      } else if (event.key.toLowerCase() === "n") {
+        notesBtn.click();
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

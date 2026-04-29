@@ -3080,6 +3080,205 @@ body.resizing-panel * {
   gap: 6px;
 }
 
+.news-balance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background:
+    linear-gradient(180deg, rgba(8, 18, 28, 0.92), rgba(5, 12, 18, 0.92));
+  border: 1px solid rgba(103, 212, 255, 0.16);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+.news-balance-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.news-balance-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(83, 255, 156, 0.18);
+  background: rgba(83, 255, 156, 0.08);
+  color: var(--green);
+  font-size: 9px;
+  font-family: monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.news-balance-title {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ecf8ff;
+  font-weight: 600;
+}
+
+.news-balance-count {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(103, 212, 255, 0.08);
+  border: 1px solid rgba(103, 212, 255, 0.14);
+  color: var(--cyan);
+  font-size: 10px;
+  font-family: monospace;
+}
+
+.news-balance-summary {
+  margin: 0;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.news-balance-distribution {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.news-distribution-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-family: monospace;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.news-distribution-pill.left,
+.news-leaning-chip.left,
+.news-source-chip.left {
+  color: #7bc6ff;
+  border-color: rgba(123, 198, 255, 0.2);
+  background: rgba(123, 198, 255, 0.08);
+}
+
+.news-distribution-pill.center,
+.news-leaning-chip.center,
+.news-source-chip.center {
+  color: #76f0a6;
+  border-color: rgba(83, 255, 156, 0.2);
+  background: rgba(83, 255, 156, 0.08);
+}
+
+.news-distribution-pill.right,
+.news-leaning-chip.right,
+.news-source-chip.right {
+  color: #ffbc76;
+  border-color: rgba(255, 188, 118, 0.22);
+  background: rgba(255, 188, 118, 0.08);
+}
+
+.news-distribution-pill.unknown,
+.news-leaning-chip.unknown,
+.news-source-chip.unknown {
+  color: var(--text-muted);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.news-balance-bar {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.news-balance-segment.left {
+  background: #4da7ff;
+}
+
+.news-balance-segment.center {
+  background: #44ff88;
+}
+
+.news-balance-segment.right {
+  background: #ffaa44;
+}
+
+.news-balance-segment.unknown {
+  background: #607280;
+}
+
+.news-balance-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.news-balance-section-title {
+  font-size: 9px;
+  color: var(--cyan);
+  font-family: monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.news-balance-section p {
+  margin: 0;
+  padding-left: 10px;
+  position: relative;
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.news-balance-section p::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--green);
+}
+
+.news-balance-bullets.subdued p {
+  color: var(--text-dim);
+}
+
+.news-balance-bullets.subdued p::before {
+  color: var(--amber);
+}
+
+.news-balance-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.news-source-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.news-balance-empty {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .news-item {
   display: flex;
   flex-direction: column;
@@ -3106,6 +3305,21 @@ body.resizing-panel * {
 .news-meta {
   font-size: 9px;
   color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.news-leaning-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* ============================================================
@@ -3306,16 +3520,21 @@ body.resizing-panel * {
    ============================================================ */
 
 .cascade-page {
+  --cascade-bg: #050911;
+  --cascade-surface: #0b1018;
+  --cascade-header-bg: #070b12;
+  --cascade-trigger-bg: #170c10;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 9999;
-  background: var(--bg-primary);
+  background: var(--cascade-bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  isolation: isolate;
   animation: cascadeFadeIn 0.3s ease-out;
 }
 
@@ -3327,10 +3546,14 @@ body.resizing-panel * {
 .cascade-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 12px 20px;
-  background: rgba(10, 14, 26, 0.95);
+  background: var(--cascade-header-bg);
   border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 3;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
 .cascade-back-btn {
@@ -3341,6 +3564,8 @@ body.resizing-panel * {
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
+  flex: 0 0 auto;
+  white-space: nowrap;
   transition: all 0.2s;
 }
 
@@ -3354,12 +3579,21 @@ body.resizing-panel * {
   font-weight: 700;
   letter-spacing: 2px;
   color: #e0e0e0;
-  flex: 1;
+  flex: 1 1 220px;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cascade-stats {
   display: flex;
-  gap: 16px;
+  justify-content: flex-end;
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .cascade-stat {
@@ -3369,6 +3603,7 @@ body.resizing-panel * {
   background: rgba(0, 200, 255, 0.08);
   padding: 4px 10px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 /* Trigger Card */
@@ -3378,8 +3613,10 @@ body.resizing-panel * {
   flex-wrap: wrap;
   gap: 16px;
   padding: 12px 20px;
-  background: rgba(255, 50, 50, 0.05);
+  background: var(--cascade-trigger-bg);
   border-bottom: 1px solid rgba(255, 50, 50, 0.15);
+  position: relative;
+  z-index: 2;
 }
 
 .trigger-severity {
@@ -3393,13 +3630,16 @@ body.resizing-panel * {
 }
 
 .trigger-content {
-  flex: 1;
+  flex: 1 1 280px;
+  min-width: 0;
 }
 
 .trigger-content h2 {
   font-size: 14px;
   color: #e0e0e0;
   margin: 0 0 2px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .trigger-content p {
@@ -3415,9 +3655,17 @@ body.resizing-panel * {
 .trigger-meta {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  flex: 0 1 360px;
+  min-width: 0;
   gap: 12px;
   font-size: 10px;
   color: #888;
+}
+
+.trigger-meta span,
+.cascade-trigger-link {
+  white-space: nowrap;
 }
 
 .cascade-trigger-link {
@@ -3444,7 +3692,7 @@ body.resizing-panel * {
 .cascade-globe-panel {
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
+  background: var(--cascade-bg);
   overflow: hidden;
 }
 
@@ -3558,7 +3806,7 @@ body.resizing-panel * {
 .cascade-right-panel {
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
+  background: var(--cascade-surface);
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -3851,15 +4099,26 @@ body.resizing-panel * {
     padding: 12px 14px;
   }
 
+  .cascade-header {
+    gap: 10px;
+  }
+
   .cascade-title {
     font-size: 14px;
     letter-spacing: 1px;
+    flex-basis: 160px;
   }
 
   .cascade-stats {
+    justify-content: flex-start;
+    flex: 1 1 100%;
     width: 100%;
-    flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .trigger-meta {
+    justify-content: flex-start;
+    flex-basis: 100%;
   }
 
   .trigger-content p {
